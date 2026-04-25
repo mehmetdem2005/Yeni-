@@ -1,0 +1,42 @@
+exchange:
+  name: binance
+  sandbox: true
+
+strategy:
+  symbols:
+    - BTC/USDT
+    - ETH/USDT
+  entry_threshold: 0.70
+  ema_period: 50
+  rsi_period: 14
+  mfi_period: 14
+  atr_period: 14
+  atr_multiplier: 1.5
+  reward_risk: 3.0
+  min_reward_risk_after_resistance: 2.0
+  resistance_lookback_h1: 20
+
+risk:
+  account_risk_per_trade: 0.005
+  max_position_pct: 0.05
+  min_position_pct: 0.005
+  max_open_positions: 2
+  max_portfolio_open_risk: 0.01
+  max_btc_corr: 0.80
+  consecutive_stop_cooldown_count: 5
+  consecutive_stop_cooldown_hours: 24
+
+execution:
+  aggressive_limit_offset_pct: 0.001
+  order_timeout_seconds: 10
+  default_fee_rate: 0.001
+  depth_band_pct: 0.002
+  required_depth_multiple: 5.0
+  max_spread_pct_abs: 0.0015
+  spread_avg_multiplier: 2.0
+  volume_lookback_short: 5
+  volume_lookback_long: 50
+  min_volume_ratio: 0.50
+  volatility_lookback: 50
+  volatility_pause_multiplier: 3.0
+  time_stop_hours: 12
