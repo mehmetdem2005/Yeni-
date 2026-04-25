@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 
+from crypto_paper_bot.book import OrderBookSnapshot
 from crypto_paper_bot.config import default_config, load_config
 from crypto_paper_bot.execution import PaperBuyRequest, simulate_aggressive_limit_buy
-from crypto_paper_bot.filters import OrderBookSnapshot
 
 
 def _synthetic_frame(rows: int, start: float = 100.0):
@@ -26,8 +25,6 @@ def _synthetic_frame(rows: int, start: float = 100.0):
 
 
 def smoke() -> None:
-    """No-pandas smoke test for Termux-light installs."""
-
     cfg = default_config()
     book = OrderBookSnapshot(
         bid=99.9,
