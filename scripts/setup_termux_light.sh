@@ -2,7 +2,8 @@
 set -euo pipefail
 
 pkg update -y
-pkg install git python clang make rust llvm lld python-numpy python-pandas -y
+pkg install git python clang make rust llvm lld python-numpy tur-repo -y
+pkg install python-pandas -y
 
 rm -rf .venv
 python -m venv --system-site-packages .venv
