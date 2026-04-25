@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from crypto_paper_bot.book import OrderBookSnapshot
 from crypto_paper_bot.config import ExecutionConfig
-from crypto_paper_bot.filters import OrderBookSnapshot
 from crypto_paper_bot.models import PaperOrderResult
 
 
@@ -19,12 +19,6 @@ def simulate_aggressive_limit_buy(
     book: OrderBookSnapshot,
     cfg: ExecutionConfig,
 ) -> PaperOrderResult:
-    """Simulate a long-only aggressive limit buy.
-
-    Paper-trade rule: touching the limit price is not enough. We consume visible asks
-    up to the limit, then apply a conservative queue factor.
-    """
-
     if request.quote_notional <= 0 or request.reference_price <= 0:
         return PaperOrderResult(request.symbol, 0.0, 0.0, 0.0, None, "none", 0.0, 0.0, "rejected")
 
@@ -34,7 +28,6 @@ def simulate_aggressive_limit_buy(
     filled_qty = 0.0
     spent = 0.0
 
-    # Conservative queue factor: only half of visible liquidity is assumed accessible.
     queue_factor = 0.50
     for price, qty in book.asks:
         if price > limit_price or remaining_quote <= 0:
