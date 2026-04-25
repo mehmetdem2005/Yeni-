@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
-from pathlib import Path
-
-import pandas as pd
 
 from crypto_paper_bot.config import default_config, load_config
-from crypto_paper_bot.filters import OrderBookSnapshot
 from crypto_paper_bot.execution import PaperBuyRequest, simulate_aggressive_limit_buy
-from crypto_paper_bot.risk import build_risk_plan
-from crypto_paper_bot.signals import TimeframeFrames, build_signal, passes_entry_threshold
+from crypto_paper_bot.filters import OrderBookSnapshot
 
 
-def _synthetic_frame(rows: int, start: float = 100.0) -> pd.DataFrame:
+def _synthetic_frame(rows: int, start: float = 100.0):
+    import pandas as pd
+
     timestamps = pd.date_range("2025-01-01", periods=rows, freq="h", tz="UTC")
     values = [start + i * 0.4 for i in range(rows)]
     return pd.DataFrame(
@@ -28,7 +25,29 @@ def _synthetic_frame(rows: int, start: float = 100.0) -> pd.DataFrame:
     )
 
 
+def smoke() -> None:
+    """No-pandas smoke test for Termux-light installs."""
+
+    cfg = default_config()
+    book = OrderBookSnapshot(
+        bid=99.9,
+        ask=100.0,
+        bids=[(99.9, 10.0)],
+        asks=[(100.0, 2.0), (100.1, 2.0)],
+    )
+    result = simulate_aggressive_limit_buy(
+        PaperBuyRequest("BTC/USDT", quote_notional=100.0, reference_price=100.0),
+        book,
+        cfg.execution,
+    )
+    print("Smoke OK")
+    print(f"Paper order: {result.status}, fill_ratio={result.fill_ratio:.2f}, avg={result.avg_fill_price}")
+
+
 def demo() -> None:
+    from crypto_paper_bot.risk import build_risk_plan
+    from crypto_paper_bot.signals import TimeframeFrames, build_signal, passes_entry_threshold
+
     cfg = default_config()
     h1 = _synthetic_frame(120)
     d1 = _synthetic_frame(120)
@@ -68,11 +87,14 @@ def validate_config(path: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(prog="crypto-paper-bot")
     sub = parser.add_subparsers(dest="command", required=True)
-    demo_parser = sub.add_parser("demo")
+    sub.add_parser("smoke")
+    sub.add_parser("demo")
     validate = sub.add_parser("validate-config")
     validate.add_argument("path")
     args = parser.parse_args()
-    if args.command == "demo":
+    if args.command == "smoke":
+        smoke()
+    elif args.command == "demo":
         demo()
     elif args.command == "validate-config":
         validate_config(args.path)
