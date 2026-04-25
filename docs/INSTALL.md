@@ -26,8 +26,8 @@ pytest
 Recommended packages:
 
 ```bash
-pkg update
-pkg install git python clang make rust binutils-is-llvm
+pkg update -y
+pkg install git python clang make rust llvm lld -y
 ```
 
 Then:
