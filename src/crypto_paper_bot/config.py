@@ -1,78 +1,113 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
-from pydantic import BaseModel, Field, PositiveFloat, field_validator
+try:
+    import yaml
+except Exception:  # pragma: no cover
+    yaml = None
 
 
-class ExchangeConfig(BaseModel):
+@dataclass
+class ExchangeConfig:
     name: str = "binance"
     sandbox: bool = True
     api_key_env: str | None = None
     api_secret_env: str | None = None
 
 
-class StrategyConfig(BaseModel):
-    symbols: list[str] = Field(default_factory=lambda: ["BTC/USDT", "ETH/USDT"])
-    entry_threshold: float = Field(default=0.70, ge=0.0, le=1.0)
-    ema_period: int = Field(default=50, ge=2)
-    rsi_period: int = Field(default=14, ge=2)
-    mfi_period: int = Field(default=14, ge=2)
-    atr_period: int = Field(default=14, ge=2)
-    atr_multiplier: PositiveFloat = 1.5
-    reward_risk: PositiveFloat = 3.0
-    min_reward_risk_after_resistance: PositiveFloat = 2.0
-    resistance_lookback_h1: int = Field(default=20, ge=2)
+@dataclass
+class StrategyConfig:
+    symbols: list[str] = field(default_factory=lambda: ["BTC/USDT", "ETH/USDT"])
+    entry_threshold: float = 0.70
+    ema_period: int = 50
+    rsi_period: int = 14
+    mfi_period: int = 14
+    atr_period: int = 14
+    atr_multiplier: float = 1.5
+    reward_risk: float = 3.0
+    min_reward_risk_after_resistance: float = 2.0
+    resistance_lookback_h1: int = 20
 
 
-class RiskConfig(BaseModel):
-    account_risk_per_trade: float = Field(default=0.005, gt=0.0, le=0.05)
-    max_position_pct: float = Field(default=0.05, gt=0.0, le=1.0)
-    min_position_pct: float = Field(default=0.005, ge=0.0, le=1.0)
-    max_open_positions: int = Field(default=2, ge=1)
-    max_portfolio_open_risk: float = Field(default=0.01, gt=0.0, le=1.0)
-    max_btc_corr: float = Field(default=0.80, ge=-1.0, le=1.0)
-    consecutive_stop_cooldown_count: int = Field(default=5, ge=1)
-    consecutive_stop_cooldown_hours: int = Field(default=24, ge=1)
+@dataclass
+class RiskConfig:
+    account_risk_per_trade: float = 0.005
+    max_position_pct: float = 0.05
+    min_position_pct: float = 0.005
+    max_open_positions: int = 2
+    max_portfolio_open_risk: float = 0.01
+    max_btc_corr: float = 0.80
+    consecutive_stop_cooldown_count: int = 5
+    consecutive_stop_cooldown_hours: int = 24
 
 
-class ExecutionConfig(BaseModel):
-    aggressive_limit_offset_pct: float = Field(default=0.001, ge=0.0, le=0.02)
-    order_timeout_seconds: int = Field(default=10, ge=1)
-    default_fee_rate: float = Field(default=0.001, ge=0.0, le=0.02)
-    depth_band_pct: float = Field(default=0.002, gt=0.0, le=0.05)
-    required_depth_multiple: PositiveFloat = 5.0
-    max_spread_pct_abs: float = Field(default=0.0015, gt=0.0, le=0.05)
-    spread_avg_multiplier: PositiveFloat = 2.0
-    volume_lookback_short: int = Field(default=5, ge=1)
-    volume_lookback_long: int = Field(default=50, ge=2)
-    min_volume_ratio: PositiveFloat = 0.50
-    volatility_lookback: int = Field(default=50, ge=2)
-    volatility_pause_multiplier: PositiveFloat = 3.0
-    time_stop_hours: int = Field(default=12, ge=1)
+@dataclass
+class ExecutionConfig:
+    aggressive_limit_offset_pct: float = 0.001
+    order_timeout_seconds: int = 10
+    default_fee_rate: float = 0.001
+    depth_band_pct: float = 0.002
+    required_depth_multiple: float = 5.0
+    max_spread_pct_abs: float = 0.0015
+    spread_avg_multiplier: float = 2.0
+    volume_lookback_short: int = 5
+    volume_lookback_long: int = 50
+    min_volume_ratio: float = 0.50
+    volatility_lookback: int = 50
+    volatility_pause_multiplier: float = 3.0
+    time_stop_hours: int = 12
 
 
-class AppConfig(BaseModel):
-    exchange: ExchangeConfig = Field(default_factory=ExchangeConfig)
-    strategy: StrategyConfig = Field(default_factory=StrategyConfig)
-    risk: RiskConfig = Field(default_factory=RiskConfig)
-    execution: ExecutionConfig = Field(default_factory=ExecutionConfig)
+@dataclass
+class AppConfig:
+    exchange: ExchangeConfig = field(default_factory=ExchangeConfig)
+    strategy: StrategyConfig = field(default_factory=StrategyConfig)
+    risk: RiskConfig = field(default_factory=RiskConfig)
+    execution: ExecutionConfig = field(default_factory=ExecutionConfig)
 
-    @field_validator("strategy")
-    @classmethod
-    def symbols_must_exist(cls, value: StrategyConfig) -> StrategyConfig:
-        if not value.symbols:
-            raise ValueError("At least one symbol is required")
-        return value
+    def model_dump_json(self, indent: int = 2) -> str:
+        import json
+
+        return json.dumps(asdict(self), indent=indent, ensure_ascii=False)
+
+
+def _merge_dataclass(instance: Any, values: dict[str, Any]) -> Any:
+    if not values:
+        return instance
+    for key, value in values.items():
+        if hasattr(instance, key):
+            setattr(instance, key, value)
+    return instance
+
+
+def _validate_config(cfg: AppConfig) -> None:
+    if not cfg.strategy.symbols:
+        raise ValueError("At least one symbol is required")
+    if not 0.0 <= cfg.strategy.entry_threshold <= 1.0:
+        raise ValueError("entry_threshold must be between 0 and 1")
+    if cfg.risk.account_risk_per_trade <= 0:
+        raise ValueError("account_risk_per_trade must be positive")
+    if cfg.risk.max_position_pct <= 0:
+        raise ValueError("max_position_pct must be positive")
 
 
 def load_config(path: str | Path) -> AppConfig:
+    if yaml is None:
+        raise RuntimeError("PyYAML is required for load_config. Install with: python -m pip install PyYAML")
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    return AppConfig.model_validate(raw)
+    cfg = AppConfig()
+    _merge_dataclass(cfg.exchange, raw.get("exchange", {}))
+    _merge_dataclass(cfg.strategy, raw.get("strategy", {}))
+    _merge_dataclass(cfg.risk, raw.get("risk", {}))
+    _merge_dataclass(cfg.execution, raw.get("execution", {}))
+    _validate_config(cfg)
+    return cfg
 
 
 def default_config() -> AppConfig:
-    return AppConfig()
+    cfg = AppConfig()
+    _validate_config(cfg)
+    return cfg
