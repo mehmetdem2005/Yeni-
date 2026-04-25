@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.env
+*.log
+logs/
+outputs/
+*.sqlite3
+configs/config.local.yaml
