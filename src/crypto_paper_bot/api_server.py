@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from crypto_paper_bot.llm_router import GroqLLMRouter, llm_response_as_plain_dict, simple_assistant_prompt
+from crypto_paper_bot.real_market import display_symbol
 from crypto_paper_bot.services import AppServices
 from crypto_paper_bot.settings import get_settings
 
@@ -89,8 +90,9 @@ def reset_paper_account() -> dict[str, Any]:
 def chart_data(symbol: str, timeframe: str, limit: int = 300) -> dict[str, Any]:
     if limit < 1 or limit > 2000:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 2000")
-    candles = services.storage.get_candles(symbol, timeframe, limit)
-    return {"symbol": symbol, "timeframe": timeframe, "candles": json_safe(candles)}
+    normalized_symbol = display_symbol(symbol)
+    candles = services.storage.get_candles(normalized_symbol, timeframe, limit)
+    return {"symbol": normalized_symbol, "timeframe": timeframe, "candles": json_safe(candles)}
 
 
 @app.post("/api/assistant/ask")
