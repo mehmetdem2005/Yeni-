@@ -60,6 +60,11 @@ class BotStorage:
                     metrics_json TEXT NOT NULL,
                     trained_samples INTEGER NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS app_settings (
+                    key TEXT PRIMARY KEY,
+                    value_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS signal_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     created_at TEXT NOT NULL,
@@ -148,6 +153,23 @@ class BotStorage:
         if row is None:
             return None
         return {"updated_at": row["updated_at"], "weights": json.loads(row["weights_json"]), "metrics": json.loads(row["metrics_json"]), "trained_samples": row["trained_samples"]}
+
+    def save_runtime_state(self, key: str, value: dict[str, Any]) -> None:
+        payload = {**value, "updated_at": utc_now()}
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO app_settings(key, value_json, updated_at) VALUES (?, ?, ?)",
+                (key, _json(payload), payload["updated_at"]),
+            )
+
+    def load_runtime_state(self, key: str) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT value_json, updated_at FROM app_settings WHERE key = ?", (key,)).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row["value_json"])
+        payload.setdefault("updated_at", row["updated_at"])
+        return payload
 
     def log_signal(self, symbol: str, score: float, ml_probability: float | None, decision: str, payload: dict[str, Any]) -> None:
         with self.connect() as conn:
