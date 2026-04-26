@@ -19,7 +19,6 @@ llm_router = GroqLLMRouter()
 automation = AutomationController(services, interval_seconds=max(10, settings.min_api_interval_seconds))
 
 app = FastAPI(title="Crypto Paper Bot API", version="0.3.0", description="Cloud-first API for the V3 crypto paper-trade control center.")
-
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False, allow_methods=["*"], allow_headers=["*"])
 
 
@@ -105,6 +104,10 @@ class AssistantRequest(BaseModel):
     context: dict[str, Any] | None = None
 
 
+class AutomationIntervalRequest(BaseModel):
+    interval_seconds: int = Field(..., ge=10, le=3600)
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {"ok": True, "env": settings.app_env}
@@ -147,6 +150,11 @@ async def control_stop() -> dict[str, Any]:
 @app.get("/api/control/status")
 def control_status() -> dict[str, Any]:
     return json_safe(automation.status())
+
+
+@app.post("/api/control/interval")
+async def control_interval(request: AutomationIntervalRequest) -> dict[str, Any]:
+    return json_safe(await automation.set_interval(request.interval_seconds))
 
 
 @app.post("/api/emergency/close-all")
