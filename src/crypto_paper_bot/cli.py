@@ -41,6 +41,23 @@ def smoke() -> None:
     print(f"Paper order: {result.status}, fill_ratio={result.fill_ratio:.2f}, avg={result.avg_fill_price}")
 
 
+def storage_smoke() -> None:
+    from crypto_paper_bot.database_adapter import create_storage, storage_runtime_info
+
+    info = storage_runtime_info()
+    print("Storage runtime:")
+    for key, value in info.items():
+        print(f"- {key}: {value}")
+
+    storage = create_storage()
+    wallet = storage.wallet()
+    stats = storage.trade_stats()
+    print("Storage OK")
+    print(f"Wallet cash: {wallet.get('cash')}")
+    print(f"Closed trades: {stats.get('closed_count')}")
+    print(f"Open trades: {stats.get('open_count')}")
+
+
 def demo() -> None:
     from crypto_paper_bot.risk import build_risk_plan
     from crypto_paper_bot.signals import TimeframeFrames, build_signal, passes_entry_threshold
@@ -85,12 +102,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="crypto-paper-bot")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("smoke")
+    sub.add_parser("storage-smoke")
     sub.add_parser("demo")
     validate = sub.add_parser("validate-config")
     validate.add_argument("path")
     args = parser.parse_args()
     if args.command == "smoke":
         smoke()
+    elif args.command == "storage-smoke":
+        storage_smoke()
     elif args.command == "demo":
         demo()
     elif args.command == "validate-config":
