@@ -76,6 +76,9 @@ class AppServices:
     def update_open_positions(self) -> dict[str, Any]:
         return self.paper.update_open_positions()
 
+    def emergency_close_all(self) -> dict[str, Any]:
+        return self.paper.emergency_close_all()
+
     def fetch_news(self) -> dict[str, Any]:
         return self.news.fetch_news()
 
