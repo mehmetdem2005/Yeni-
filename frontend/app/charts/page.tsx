@@ -1,4 +1,5 @@
 import { ChartControls } from '@/components/ChartControls';
+import { ChartMarkerLegend } from '@/components/ChartMarkerLegend';
 import { IndicatorPanelChart } from '@/components/IndicatorPanelChart';
 import { LightweightCandles } from '@/components/LightweightCandles';
 import { MacdPanelChart } from '@/components/MacdPanelChart';
@@ -22,6 +23,13 @@ type TradeMarker = {
   shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
   text: string;
   color: string;
+  title?: string;
+  sentiment?: string;
+  impact_score?: number;
+  event_type?: string;
+  score?: number;
+  notional?: number;
+  price?: number;
 };
 
 type PriceLine = {
@@ -145,6 +153,7 @@ export default async function ChartsPage({ searchParams }: PageProps) {
             priceLines={chart.overlays?.price_lines ?? []}
           />
         </div>
+        <ChartMarkerLegend markers={visibleMarkers} />
         {showRsi ? (
           <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
             <IndicatorPanelChart
