@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, RefreshCcw, ShieldAlert, TimerReset } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCcw, ShieldAlert, TimerReset, X } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 
 type AutomationStatus = {
@@ -14,6 +14,14 @@ type AutomationStatus = {
 };
 
 type StatusResponse = { automation?: AutomationStatus };
+
+type ConfirmAction = {
+  label: string;
+  path: string;
+  title: string;
+  body: string;
+  dangerText: string;
+} | null;
 
 function formatTime(value?: string | null) {
   if (!value) return 'Henüz yok';
@@ -28,6 +36,7 @@ export function AutomationStatusCard() {
   const [status, setStatus] = useState<AutomationStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState('Durum yükleniyor...');
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
   async function refresh() {
     try {
@@ -50,6 +59,7 @@ export function AutomationStatusCard() {
       setMessage(`${label} başarısız oldu`);
     } finally {
       setBusy(null);
+      setConfirmAction(null);
     }
   }
 
@@ -57,7 +67,7 @@ export function AutomationStatusCard() {
 
   const running = Boolean(status?.running);
   return (
-    <section className="card" style={{ display: 'grid', gap: 10 }}>
+    <section className="card" style={{ display: 'grid', gap: 10, position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
         <div>
           <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 900 }}>OTOMASYON</div>
@@ -92,13 +102,56 @@ export function AutomationStatusCard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <button type="button" onClick={() => postAction('Acil Kapat', '/api/emergency/close-all')} style={{ minHeight: 46, border: 0, borderRadius: 14, background: 'var(--bad)', color: '#fff', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
+        <button
+          type="button"
+          onClick={() => setConfirmAction({
+            label: 'Acil Kapat',
+            path: '/api/emergency/close-all',
+            title: 'Açık pozisyonlar acil kapatılsın mı?',
+            body: 'Bu işlem otomasyonu durdurur ve tüm açık paper-trade pozisyonlarını güncel bid fiyatıyla kapatmayı dener. Geri alınamaz.',
+            dangerText: 'Evet, Acil Kapat',
+          })}
+          style={{ minHeight: 46, border: 0, borderRadius: 14, background: 'var(--bad)', color: '#fff', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}
+        >
           {busy === 'Acil Kapat' ? <Loader2 className="spin" size={17} /> : <ShieldAlert size={17} />} Acil Kapat
         </button>
-        <button type="button" onClick={() => postAction('Hesabı Sıfırla', '/api/reset-paper-account')} style={{ minHeight: 46, border: '1px solid var(--border)', borderRadius: 14, background: '#fff', color: 'var(--bad)', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
+        <button
+          type="button"
+          onClick={() => setConfirmAction({
+            label: 'Hesabı Sıfırla',
+            path: '/api/reset-paper-account',
+            title: 'Paper hesabı sıfırlansın mı?',
+            body: 'Bu işlem sanal hesap, paper pozisyonlar, equity geçmişi ve sinyal kayıtlarını sıfırlayabilir. Test geçmişini kaybetmek istemiyorsan basma.',
+            dangerText: 'Evet, Sıfırla',
+          })}
+          style={{ minHeight: 46, border: '1px solid var(--border)', borderRadius: 14, background: '#fff', color: 'var(--bad)', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}
+        >
           {busy === 'Hesabı Sıfırla' ? <Loader2 className="spin" size={17} /> : <AlertTriangle size={17} />} Sıfırla
         </button>
       </div>
+
+      {confirmAction ? (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'grid', placeItems: 'center', background: 'rgba(15, 23, 42, 0.35)', padding: 18 }}>
+          <div style={{ width: 'min(390px, 100%)', background: '#fff', borderRadius: 22, border: '1px solid var(--border)', boxShadow: '0 24px 80px rgba(15, 23, 42, 0.24)', padding: 14, display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'start' }}>
+                <span style={{ display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: 14, background: 'var(--bad-soft)', color: 'var(--bad)' }}><AlertTriangle size={20} /></span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16 }}>{confirmAction.title}</h3>
+                  <p style={{ margin: '6px 0 0', color: 'var(--muted)', fontSize: 12, lineHeight: 1.45 }}>{confirmAction.body}</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setConfirmAction(null)} style={{ border: 0, background: 'transparent', color: 'var(--muted)', padding: 4 }}><X size={19} /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button type="button" onClick={() => setConfirmAction(null)} style={{ minHeight: 44, border: '1px solid var(--border)', borderRadius: 14, background: '#fff', fontWeight: 950 }}>Vazgeç</button>
+              <button type="button" onClick={() => postAction(confirmAction.label, confirmAction.path)} style={{ minHeight: 44, border: 0, borderRadius: 14, background: 'var(--bad)', color: '#fff', fontWeight: 950 }}>
+                {busy === confirmAction.label ? 'Çalışıyor...' : confirmAction.dangerText}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
