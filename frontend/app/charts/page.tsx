@@ -1,9 +1,10 @@
 import { ChartControls } from '@/components/ChartControls';
 import { IndicatorPanelChart } from '@/components/IndicatorPanelChart';
 import { LightweightCandles } from '@/components/LightweightCandles';
+import { MacdPanelChart } from '@/components/MacdPanelChart';
 import { MobileNav } from '@/components/MobileNav';
 import { apiGet } from '@/lib/api';
-import { atrLine, rsiLine, lastValue } from '@/lib/chart-indicators';
+import { atrLine, lastValue, macdPoints, rsiLine } from '@/lib/chart-indicators';
 
 type Candle = {
   timestamp: string;
@@ -54,11 +55,14 @@ export default async function ChartsPage({ searchParams }: PageProps) {
   const timeframe = first(params.timeframe, '1h');
   const showVolume = boolParam(params.volume, true);
   const showEma = boolParam(params.ema, true);
+  const showBollinger = boolParam(params.bb, false);
   const showRsi = boolParam(params.rsi, true);
   const showAtr = boolParam(params.atr, true);
+  const showMacd = boolParam(params.macd, true);
   const chart = await getChart(symbol, timeframe);
   const rsiPoints = rsiLine(chart.candles, 14);
   const atrPoints = atrLine(chart.candles, 14);
+  const macd = macdPoints(chart.candles, 12, 26, 9);
 
   return (
     <main className="app-shell">
@@ -70,9 +74,18 @@ export default async function ChartsPage({ searchParams }: PageProps) {
             Zaman dilimi: {chart.timeframe} · Mum sayısı: {chart.candles.length} {chart.live_filled ? '· canlı dolduruldu' : ''}
           </p>
         </div>
-        <ChartControls symbol={symbol} timeframe={timeframe} showVolume={showVolume} showEma={showEma} showRsi={showRsi} showAtr={showAtr} />
+        <ChartControls
+          symbol={symbol}
+          timeframe={timeframe}
+          showVolume={showVolume}
+          showEma={showEma}
+          showBollinger={showBollinger}
+          showRsi={showRsi}
+          showAtr={showAtr}
+          showMacd={showMacd}
+        />
         <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
-          <LightweightCandles candles={chart.candles} showVolume={showVolume} showEma={showEma} emaPeriod={50} />
+          <LightweightCandles candles={chart.candles} showVolume={showVolume} showEma={showEma} showBollinger={showBollinger} emaPeriod={50} />
         </div>
         {showRsi ? (
           <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
@@ -82,6 +95,11 @@ export default async function ChartsPage({ searchParams }: PageProps) {
               color="#7c3aed"
               guideLines={[{ value: 70, label: 'Aşırı alım' }, { value: 30, label: 'Zayıf bölge' }]}
             />
+          </div>
+        ) : null}
+        {showMacd ? (
+          <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
+            <MacdPanelChart points={macd} />
           </div>
         ) : null}
         {showAtr ? (
