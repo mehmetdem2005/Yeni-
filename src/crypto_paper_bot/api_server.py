@@ -92,7 +92,20 @@ def chart_data(symbol: str, timeframe: str, limit: int = 300) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 2000")
     normalized_symbol = display_symbol(symbol)
     candles = services.storage.get_candles(normalized_symbol, timeframe, limit)
-    return {"symbol": normalized_symbol, "timeframe": timeframe, "candles": json_safe(candles)}
+    live_filled = False
+    if not candles:
+        try:
+            live_candles = services.market.klines(normalized_symbol, timeframe, limit)
+            services.storage.upsert_candles(normalized_symbol, timeframe, live_candles)
+            candles = services.storage.get_candles(normalized_symbol, timeframe, limit)
+            live_filled = True
+        except Exception as exc:
+            services.storage.event(
+                "ERROR",
+                "Grafik canlı mum verisiyle doldurulamadı",
+                {"channel": "error", "symbol": normalized_symbol, "timeframe": timeframe, "error": str(exc)},
+            )
+    return {"symbol": normalized_symbol, "timeframe": timeframe, "candles": json_safe(candles), "live_filled": live_filled}
 
 
 @app.post("/api/assistant/ask")
