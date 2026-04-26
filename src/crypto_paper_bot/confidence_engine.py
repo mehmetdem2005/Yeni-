@@ -8,7 +8,6 @@ from crypto_paper_bot.adaptive_confidence import (
     ComponentStats,
     adaptive_weights,
     component_stats_from_trades,
-    compute_system_confidence,
 )
 from crypto_paper_bot.family_engine import FamilyName, FamilySnapshot
 from crypto_paper_bot.log_channels import LogChannel, LogLevel, LogRecord, make_log
@@ -41,10 +40,14 @@ class TradeConfidenceSnapshot:
 @dataclass(frozen=True)
 class SystemConfidenceSnapshot:
     system_confidence: float
+    closed_trades: int
+    winning_trades: int
+    losing_trades: int
+    win_rate: float
+    total_pnl: float
     data_health: float
     model_health: float
     api_health: float
-    account_health: float
     risk_health: float
     status: str
     explanation: str
@@ -55,12 +58,12 @@ def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
     return max(low, min(high, value))
 
 
-def score_status(score: float) -> str:
-    if score >= 0.75:
-        return "Güçlü"
-    if score >= 0.60:
-        return "Orta-Güçlü"
-    if score >= 0.45:
+def score_status(score: float, closed_trades: int = 0) -> str:
+    if closed_trades <= 0:
+        return "Henüz Ölçülmedi"
+    if score >= 0.70:
+        return "Başarılı"
+    if score >= 0.50:
         return "Orta"
     return "Zayıf"
 
@@ -145,7 +148,7 @@ def calculate_trade_confidence(
         f"İşlem özgüveni %{total * 100:.1f}. "
         f"En güçlü katkı: {component_label(strongest)}. "
         f"En zayıf katkı: {component_label(weakest)}. "
-        "Ağırlıklar geçmiş sanal işlem başarısına göre otomatik ayarlanır."
+        "Bu puan tek işlem adayının bileşen skorudur; sağ üstteki sistem özgüveni ise kapanmış işlemlerdeki başarı oranıdır."
     )
 
     logs = [
@@ -193,20 +196,15 @@ def data_health_score(candle_count: int, min_expected: int = 500) -> float:
 
 def model_health_score(model_state: dict[str, Any] | None) -> float:
     if not model_state:
-        return 0.35
-    metrics = model_state.get("metrics", {}) or {}
-    accuracy = metrics.get("accuracy")
+        return 0.0
     trained_samples = float(model_state.get("trained_samples") or 0)
-    sample_score = clamp(trained_samples / 500.0)
-    if accuracy is None:
-        return clamp(0.35 + sample_score * 0.40)
-    return clamp((float(accuracy) * 0.70) + (sample_score * 0.30))
+    return clamp(trained_samples / 500.0)
 
 
 def api_health_score(latest_events: list[dict[str, Any]], lookback: int = 20) -> float:
     recent = latest_events[:lookback]
     if not recent:
-        return 0.80
+        return 1.0
     errors = 0
     for event in recent:
         level = str(event.get("level") or "").upper()
@@ -216,21 +214,22 @@ def api_health_score(latest_events: list[dict[str, Any]], lookback: int = 20) ->
     return clamp(1.0 - (errors / max(len(recent), 1)))
 
 
-def account_health_score(wallet: dict[str, Any], trade_stats: dict[str, Any]) -> float:
-    start = float(wallet.get("starting_balance") or 10000.0)
-    cash = float(wallet.get("cash") or start)
-    total_pnl = float(trade_stats.get("total_pnl") or 0.0)
-    pnl_pct = total_pnl / start if start > 0 else 0.0
-    cash_score = clamp(cash / start)
-    pnl_score = clamp(0.50 + pnl_pct * 5.0)
-    return clamp((cash_score * 0.45) + (pnl_score * 0.55))
-
-
 def risk_health_score(open_positions: list[dict[str, Any]], max_open_positions: int = 2) -> float:
     count = len([position for position in open_positions if position.get("status") == "OPEN"])
     if count <= 0:
         return 1.0
     return clamp(1.0 - (count / max(max_open_positions + 1, 1)))
+
+
+def proven_trade_confidence(trade_stats: dict[str, Any]) -> tuple[float, int, int, int, float]:
+    closed = int(trade_stats.get("closed_count") or 0)
+    total_pnl = float(trade_stats.get("total_pnl") or 0.0)
+    if closed <= 0:
+        return 0.0, 0, 0, 0, total_pnl
+    win_rate = clamp(float(trade_stats.get("win_rate") or 0.0))
+    wins = int(round(win_rate * closed))
+    losses = max(0, closed - wins)
+    return win_rate, closed, wins, losses, total_pnl
 
 
 def calculate_system_confidence(
@@ -241,37 +240,45 @@ def calculate_system_confidence(
     trade_stats: dict[str, Any],
     open_positions: list[dict[str, Any]],
 ) -> SystemConfidenceSnapshot:
+    # User-defined rule:
+    # System confidence is NOT API/data/model health.
+    # It is the proven success rate of closed paper trades.
+    # 1 win / 1 trade = 100%, 2 wins / 5 trades = 40%, 0 trades = 0% and unmeasured.
+    system_confidence, closed, wins, losses, total_pnl = proven_trade_confidence(trade_stats)
     data_health = data_health_score(candle_count)
     model_health = model_health_score(model_state)
     api_health = api_health_score(latest_events)
-    account_health = account_health_score(wallet, trade_stats)
     risk_health = risk_health_score(open_positions)
-    total = compute_system_confidence(
-        data_health=data_health,
-        model_health=model_health,
-        api_health=api_health,
-        account_health=account_health,
-        risk_health=risk_health,
-    )
-    status = score_status(total)
-    explanation = (
-        f"Sistem genel özgüveni %{total * 100:.1f}. "
-        f"Veri sağlığı %{data_health * 100:.1f}, model sağlığı %{model_health * 100:.1f}, "
-        f"API sağlığı %{api_health * 100:.1f}, hesap sağlığı %{account_health * 100:.1f}, "
-        f"risk sağlığı %{risk_health * 100:.1f}."
-    )
+    status = score_status(system_confidence, closed)
+
+    if closed <= 0:
+        explanation = (
+            "Sistem özgüveni henüz ölçülmedi: kapanmış sanal işlem yok. "
+            "Bu yüzden sağ üstteki sistem özgüveni %0 kabul edilir. "
+            "Veri, model ve API sağlığı ayrı göstergelerdir; işlem başarısı yerine geçmez."
+        )
+    else:
+        explanation = (
+            f"Sistem özgüveni %{system_confidence * 100:.1f}. "
+            f"Hesap: {wins} başarılı işlem / {closed} kapanmış işlem. "
+            f"Kaybeden işlem: {losses}. Toplam net sonuç: {total_pnl:.2f} USDT."
+        )
 
     logs = [
         make_log(
             LogChannel.CONFIDENCE,
-            "Sistem genel özgüveni hesaplandı.",
+            "Sistem özgüveni kapanmış işlem başarı oranına göre hesaplandı.",
             LogLevel.INFO,
             {
-                "system_confidence": total,
+                "system_confidence": system_confidence,
+                "closed_trades": closed,
+                "winning_trades": wins,
+                "losing_trades": losses,
+                "win_rate": system_confidence,
+                "total_pnl": total_pnl,
                 "data_health": data_health,
                 "model_health": model_health,
                 "api_health": api_health,
-                "account_health": account_health,
                 "risk_health": risk_health,
                 "status": status,
             },
@@ -280,11 +287,15 @@ def calculate_system_confidence(
     ]
 
     return SystemConfidenceSnapshot(
-        system_confidence=total,
+        system_confidence=system_confidence,
+        closed_trades=closed,
+        winning_trades=wins,
+        losing_trades=losses,
+        win_rate=system_confidence,
+        total_pnl=total_pnl,
         data_health=data_health,
         model_health=model_health,
         api_health=api_health,
-        account_health=account_health,
         risk_health=risk_health,
         status=status,
         explanation=explanation,
@@ -309,10 +320,14 @@ def confidence_snapshot_as_plain_dict(snapshot: TradeConfidenceSnapshot) -> dict
 def system_confidence_as_plain_dict(snapshot: SystemConfidenceSnapshot) -> dict[str, Any]:
     return {
         "system_confidence": snapshot.system_confidence,
+        "closed_trades": snapshot.closed_trades,
+        "winning_trades": snapshot.winning_trades,
+        "losing_trades": snapshot.losing_trades,
+        "win_rate": snapshot.win_rate,
+        "total_pnl": snapshot.total_pnl,
         "data_health": snapshot.data_health,
         "model_health": snapshot.model_health,
         "api_health": snapshot.api_health,
-        "account_health": snapshot.account_health,
         "risk_health": snapshot.risk_health,
         "status": snapshot.status,
         "explanation": snapshot.explanation,
