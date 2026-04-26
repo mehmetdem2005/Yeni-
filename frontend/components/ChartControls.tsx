@@ -6,9 +6,12 @@ type Props = {
   showVolume: boolean;
   showEma: boolean;
   showBollinger: boolean;
+  showVwap: boolean;
   showRsi: boolean;
   showAtr: boolean;
   showMacd: boolean;
+  showAdx: boolean;
+  showMfi: boolean;
 };
 
 const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT'];
@@ -21,9 +24,12 @@ function buildUrl(next: Partial<Props>, current: Props) {
   params.set('volume', String(next.showVolume ?? current.showVolume));
   params.set('ema', String(next.showEma ?? current.showEma));
   params.set('bb', String(next.showBollinger ?? current.showBollinger));
+  params.set('vwap', String(next.showVwap ?? current.showVwap));
   params.set('rsi', String(next.showRsi ?? current.showRsi));
   params.set('atr', String(next.showAtr ?? current.showAtr));
   params.set('macd', String(next.showMacd ?? current.showMacd));
+  params.set('adx', String(next.showAdx ?? current.showAdx));
+  params.set('mfi', String(next.showMfi ?? current.showMfi));
   return `/charts?${params.toString()}`;
 }
 
@@ -56,15 +62,18 @@ export function ChartControls(props: Props) {
       </select>
       <details style={{ position: 'relative' }}>
         <summary style={{ listStyle: 'none', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', background: 'var(--surface-soft)', cursor: 'pointer', fontWeight: 900 }}>⋮</summary>
-        <div style={{ position: 'absolute', right: 0, top: 48, zIndex: 10, minWidth: 245, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-soft)', padding: 10 }}>
+        <div style={{ position: 'absolute', right: 0, top: 48, zIndex: 10, minWidth: 255, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-soft)', padding: 10 }}>
           <b>Grafik Ayarları</b>
           <p style={{ margin: '8px 0', color: 'var(--muted)', fontSize: 13 }}>Ayarlar URL ile taşınır; sonraki adımda kullanıcı profilinde saklanacak.</p>
           <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showVolume} onChange={(event) => { window.location.href = buildUrl({ showVolume: event.target.checked }, props); }} /> Hacim</label>
           <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showEma} onChange={(event) => { window.location.href = buildUrl({ showEma: event.target.checked }, props); }} /> EMA 50</label>
           <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showBollinger} onChange={(event) => { window.location.href = buildUrl({ showBollinger: event.target.checked }, props); }} /> Bollinger Bands</label>
+          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showVwap} onChange={(event) => { window.location.href = buildUrl({ showVwap: event.target.checked }, props); }} /> VWAP</label>
           <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showRsi} onChange={(event) => { window.location.href = buildUrl({ showRsi: event.target.checked }, props); }} /> RSI 14</label>
           <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showAtr} onChange={(event) => { window.location.href = buildUrl({ showAtr: event.target.checked }, props); }} /> ATR 14</label>
           <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showMacd} onChange={(event) => { window.location.href = buildUrl({ showMacd: event.target.checked }, props); }} /> MACD 12/26/9</label>
+          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showAdx} onChange={(event) => { window.location.href = buildUrl({ showAdx: event.target.checked }, props); }} /> ADX 14</label>
+          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showMfi} onChange={(event) => { window.location.href = buildUrl({ showMfi: event.target.checked }, props); }} /> MFI 14</label>
         </div>
       </details>
     </div>
