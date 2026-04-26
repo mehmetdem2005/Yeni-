@@ -140,6 +140,27 @@ class PostgresStorage:
             return None
         return _loads(row["value_json"])
 
+    def save_runtime_state(self, key: str, value: dict[str, Any]) -> None:
+        payload = {**value, "updated_at": utc_now()}
+        with self.connect() as conn:
+            conn.execute(
+                """
+                insert into app_settings(key, value_json, is_secret)
+                values (%s, %s::jsonb, false)
+                on conflict (key) do update set value_json = excluded.value_json, updated_at = now()
+                """,
+                (key, _json(payload)),
+            )
+
+    def load_runtime_state(self, key: str) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute("select value_json, updated_at from app_settings where key = %s", (key,)).fetchone()
+        if row is None:
+            return None
+        payload = _loads(row["value_json"]) or {}
+        payload.setdefault("updated_at", _iso(row.get("updated_at")))
+        return payload
+
     def log_signal(self, symbol: str, score: float, ml_probability: float | None, decision: str, payload: dict[str, Any]) -> None:
         with self.connect() as conn:
             conn.execute(
