@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts';
+import { emaLine } from '@/lib/chart-indicators';
 
 type Candle = {
   timestamp: string;
@@ -15,17 +16,21 @@ type Candle = {
 type Props = {
   candles: Candle[];
   height?: number;
+  showVolume?: boolean;
+  showEma?: boolean;
+  emaPeriod?: number;
 };
 
 function toUnixTime(timestamp: string) {
   return Math.floor(new Date(timestamp).getTime() / 1000);
 }
 
-export function LightweightCandles({ candles, height = 390 }: Props) {
+export function LightweightCandles({ candles, height = 390, showVolume = true, showEma = true, emaPeriod = 50 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const emaRef = useRef<ISeriesApi<'Line'> | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -76,9 +81,18 @@ export function LightweightCandles({ candles, height = 390 }: Props) {
       },
     });
 
+    const emaSeries = chart.addLineSeries({
+      color: '#2563eb',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      title: `EMA ${emaPeriod}`,
+    });
+
     chartRef.current = chart;
     candleRef.current = candleSeries;
     volumeRef.current = volumeSeries;
+    emaRef.current = emaSeries;
 
     const resize = () => {
       if (!containerRef.current) return;
@@ -93,11 +107,12 @@ export function LightweightCandles({ candles, height = 390 }: Props) {
       chartRef.current = null;
       candleRef.current = null;
       volumeRef.current = null;
+      emaRef.current = null;
     };
-  }, [height]);
+  }, [height, emaPeriod]);
 
   useEffect(() => {
-    if (!candleRef.current || !volumeRef.current || !chartRef.current) return;
+    if (!candleRef.current || !volumeRef.current || !emaRef.current || !chartRef.current) return;
 
     const candleData: CandlestickData[] = candles.map((item) => ({
       time: toUnixTime(item.timestamp) as CandlestickData['time'],
@@ -107,21 +122,26 @@ export function LightweightCandles({ candles, height = 390 }: Props) {
       close: Number(item.close),
     }));
 
-    const volumeData: HistogramData[] = candles.map((item) => ({
-      time: toUnixTime(item.timestamp) as HistogramData['time'],
-      value: Number(item.volume),
-      color: Number(item.close) >= Number(item.open) ? 'rgba(22, 163, 74, 0.28)' : 'rgba(220, 38, 38, 0.24)',
-    }));
+    const volumeData: HistogramData[] = showVolume
+      ? candles.map((item) => ({
+          time: toUnixTime(item.timestamp) as HistogramData['time'],
+          value: Number(item.volume),
+          color: Number(item.close) >= Number(item.open) ? 'rgba(22, 163, 74, 0.28)' : 'rgba(220, 38, 38, 0.24)',
+        }))
+      : [];
+
+    const emaData = showEma ? emaLine(candles, emaPeriod) : [];
 
     candleRef.current.setData(candleData);
     volumeRef.current.setData(volumeData);
+    emaRef.current.setData(emaData);
     chartRef.current.timeScale().fitContent();
-  }, [candles]);
+  }, [candles, showVolume, showEma, emaPeriod]);
 
   if (!candles.length) {
     return (
       <div style={{ minHeight: height, display: 'grid', placeItems: 'center', color: 'var(--muted)' }}>
-        Grafik için mum verisi yok. Önce veri toplama/worker çalışmalı.
+        Grafik için mum verisi yok. API canlı veriyle doldurmayı deneyecek.
       </div>
     );
   }
