@@ -8,6 +8,8 @@ services:
     envVars:
       - key: APP_ENV
         value: render
+      - key: MIN_API_INTERVAL_SECONDS
+        value: "60"
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
@@ -22,8 +24,6 @@ services:
         value: "false"
       - key: BINANCE_ENABLE_WITHDRAWALS
         value: "false"
-      - key: MIN_API_INTERVAL_SECONDS
-        value: "10"
 
   - type: worker
     name: crypto-paper-bot-worker
@@ -34,6 +34,8 @@ services:
     envVars:
       - key: APP_ENV
         value: render
+      - key: MIN_API_INTERVAL_SECONDS
+        value: "300"
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
@@ -46,7 +48,3 @@ services:
         value: "false"
       - key: BINANCE_ENABLE_WITHDRAWALS
         value: "false"
-      - key: MIN_API_INTERVAL_SECONDS
-        value: "10"
-      - key: WORKER_CYCLE_SECONDS
-        value: "600"
