@@ -16,6 +16,7 @@ type Candle = {
 };
 
 type TradeMarker = {
+  kind?: 'trade' | 'news' | 'whale';
   time: string;
   position: 'aboveBar' | 'belowBar' | 'inBar';
   shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
@@ -38,6 +39,7 @@ type ChartResponse = {
   overlays?: {
     markers?: TradeMarker[];
     price_lines?: PriceLine[];
+    counts?: { trade?: number; news?: number; whale?: number };
   };
 };
 
@@ -58,6 +60,14 @@ function boolParam(value: string | string[] | undefined, fallback: boolean) {
 function fmt(value: number | null) {
   if (value === null) return '—';
   return value.toFixed(2);
+}
+
+function filterMarkers(markers: TradeMarker[], showTrade: boolean, showNews: boolean, showWhale: boolean) {
+  return markers.filter((marker) => {
+    if (marker.kind === 'news') return showNews;
+    if (marker.kind === 'whale') return showWhale;
+    return showTrade;
+  });
 }
 
 async function getChart(symbol: string, timeframe: string): Promise<ChartResponse> {
@@ -81,12 +91,17 @@ export default async function ChartsPage({ searchParams }: PageProps) {
   const showMacd = boolParam(params.macd, true);
   const showAdx = boolParam(params.adx, false);
   const showMfi = boolParam(params.mfi, false);
+  const showTradeMarkers = boolParam(params.tradeMarkers, true);
+  const showNewsMarkers = boolParam(params.newsMarkers, true);
+  const showWhaleMarkers = boolParam(params.whaleMarkers, true);
   const chart = await getChart(symbol, timeframe);
   const rsiPoints = rsiLine(chart.candles, 14);
   const atrPoints = atrLine(chart.candles, 14);
   const macd = macdPoints(chart.candles, 12, 26, 9);
   const adxPoints = adxLine(chart.candles, 14);
   const mfiPoints = mfiLine(chart.candles, 14);
+  const visibleMarkers = filterMarkers(chart.overlays?.markers ?? [], showTradeMarkers, showNewsMarkers, showWhaleMarkers);
+  const counts = chart.overlays?.counts ?? {};
 
   return (
     <main className="app-shell">
@@ -96,7 +111,10 @@ export default async function ChartsPage({ searchParams }: PageProps) {
           <h1 style={{ margin: 0, fontSize: 22 }}>{chart.symbol} Mum Grafiği</h1>
           <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>
             Zaman dilimi: {chart.timeframe} · Mum sayısı: {chart.candles.length} {chart.live_filled ? '· canlı dolduruldu' : ''}
-            {chart.overlays?.markers?.length ? ` · ${chart.overlays.markers.length} işlem işareti` : ''}
+            {visibleMarkers.length ? ` · ${visibleMarkers.length} görünür işaret` : ''}
+          </p>
+          <p style={{ margin: '4px 0 0', color: 'var(--muted)', fontSize: 12 }}>
+            İşlem: {counts.trade ?? 0} · Haber: {counts.news ?? 0} · Balina: {counts.whale ?? 0}
           </p>
         </div>
         <ChartControls
@@ -111,6 +129,9 @@ export default async function ChartsPage({ searchParams }: PageProps) {
           showMacd={showMacd}
           showAdx={showAdx}
           showMfi={showMfi}
+          showTradeMarkers={showTradeMarkers}
+          showNewsMarkers={showNewsMarkers}
+          showWhaleMarkers={showWhaleMarkers}
         />
         <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
           <LightweightCandles
@@ -120,7 +141,7 @@ export default async function ChartsPage({ searchParams }: PageProps) {
             showBollinger={showBollinger}
             showVwap={showVwap}
             emaPeriod={50}
-            markers={chart.overlays?.markers ?? []}
+            markers={visibleMarkers}
             priceLines={chart.overlays?.price_lines ?? []}
           />
         </div>
