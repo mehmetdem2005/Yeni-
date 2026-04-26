@@ -4,7 +4,7 @@ import { LightweightCandles } from '@/components/LightweightCandles';
 import { MacdPanelChart } from '@/components/MacdPanelChart';
 import { MobileNav } from '@/components/MobileNav';
 import { apiGet } from '@/lib/api';
-import { atrLine, lastValue, macdPoints, rsiLine } from '@/lib/chart-indicators';
+import { adxLine, atrLine, lastValue, macdPoints, mfiLine, rsiLine } from '@/lib/chart-indicators';
 
 type Candle = {
   timestamp: string;
@@ -56,13 +56,18 @@ export default async function ChartsPage({ searchParams }: PageProps) {
   const showVolume = boolParam(params.volume, true);
   const showEma = boolParam(params.ema, true);
   const showBollinger = boolParam(params.bb, false);
+  const showVwap = boolParam(params.vwap, false);
   const showRsi = boolParam(params.rsi, true);
   const showAtr = boolParam(params.atr, true);
   const showMacd = boolParam(params.macd, true);
+  const showAdx = boolParam(params.adx, false);
+  const showMfi = boolParam(params.mfi, false);
   const chart = await getChart(symbol, timeframe);
   const rsiPoints = rsiLine(chart.candles, 14);
   const atrPoints = atrLine(chart.candles, 14);
   const macd = macdPoints(chart.candles, 12, 26, 9);
+  const adxPoints = adxLine(chart.candles, 14);
+  const mfiPoints = mfiLine(chart.candles, 14);
 
   return (
     <main className="app-shell">
@@ -80,12 +85,15 @@ export default async function ChartsPage({ searchParams }: PageProps) {
           showVolume={showVolume}
           showEma={showEma}
           showBollinger={showBollinger}
+          showVwap={showVwap}
           showRsi={showRsi}
           showAtr={showAtr}
           showMacd={showMacd}
+          showAdx={showAdx}
+          showMfi={showMfi}
         />
         <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
-          <LightweightCandles candles={chart.candles} showVolume={showVolume} showEma={showEma} showBollinger={showBollinger} emaPeriod={50} />
+          <LightweightCandles candles={chart.candles} showVolume={showVolume} showEma={showEma} showBollinger={showBollinger} showVwap={showVwap} emaPeriod={50} />
         </div>
         {showRsi ? (
           <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
@@ -100,6 +108,16 @@ export default async function ChartsPage({ searchParams }: PageProps) {
         {showMacd ? (
           <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
             <MacdPanelChart points={macd} />
+          </div>
+        ) : null}
+        {showAdx ? (
+          <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
+            <IndicatorPanelChart title={`ADX 14 · Son ${fmt(lastValue(adxPoints))}`} points={adxPoints} color="#0f766e" guideLines={[{ value: 25, label: 'Güçlü trend' }]} />
+          </div>
+        ) : null}
+        {showMfi ? (
+          <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
+            <IndicatorPanelChart title={`MFI 14 · Son ${fmt(lastValue(mfiPoints))}`} points={mfiPoints} color="#0891b2" guideLines={[{ value: 80, label: 'Para aşırı giriş' }, { value: 20, label: 'Para zayıf' }]} />
           </div>
         ) : null}
         {showAtr ? (
