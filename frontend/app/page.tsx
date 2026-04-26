@@ -1,4 +1,5 @@
-import { Activity, Bot, CandlestickChart, Newspaper, Settings } from 'lucide-react';
+import { Bot } from 'lucide-react';
+import { MobileNav } from '@/components/MobileNav';
 import { apiGet } from '@/lib/api';
 
 type StatusResponse = {
@@ -44,7 +45,7 @@ export default async function HomePage() {
           <Bot size={28} color="var(--primary)" />
         </div>
         <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.55 }}>
-          Kral, bu ekran V3 framework tabanlı yeni panelin başlangıcı. Sistem artık FastAPI backend + Next.js/Vercel frontend mimarisine geçiyor. Burada grafikler, haberler, balina akışı ve AI asistan modüler şekilde büyüyecek.
+          Kral, bu ekran V3 framework tabanlı yeni panelin başlangıcı. Sistem artık FastAPI backend + Next.js/Vercel frontend mimarisinde ilerliyor.
         </p>
       </section>
 
@@ -88,13 +89,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <nav className="mobile-bottom-nav">
-        <a className="active" href="#"><Activity size={16} /> Ana</a>
-        <a href="#"><CandlestickChart size={16} /> Grafik</a>
-        <a href="#"><Newspaper size={16} /> Haber</a>
-        <a href="#"><Bot size={16} /> AI</a>
-        <a href="#"><Settings size={16} /> Ayar</a>
-      </nav>
+      <MobileNav active="/" />
     </main>
   );
 }
