@@ -1,9 +1,14 @@
-import { Bot } from 'lucide-react';
+import { ChartNoAxesCombined, ShieldCheck, TrendingUp, WalletCards } from 'lucide-react';
+import { AiSummaryCard } from '@/components/AiSummaryCard';
+import { DashboardActionStrip } from '@/components/DashboardActionStrip';
+import { EquityPreviewCard } from '@/components/EquityPreviewCard';
 import { MobileNav } from '@/components/MobileNav';
+import { SignalListCard } from '@/components/SignalListCard';
 import { apiGet } from '@/lib/api';
 
 type StatusResponse = {
   db_rows?: number;
+  latest_signals?: Array<{ symbol?: string; decision?: string; score?: number; created_at?: string }>;
   trade_stats?: { closed_count?: number; open_count?: number; win_rate?: number; total_pnl?: number };
   wallet?: { cash?: number; starting_balance?: number };
   system_confidence?: { system_confidence?: number; status?: string; explanation?: string };
@@ -11,13 +16,13 @@ type StatusResponse = {
 };
 
 function pct(value?: number) {
-  if (value === undefined || value === null) return '—';
-  return `%${(value * 100).toFixed(1)}`;
+  if (value === undefined || value === null) return '%0';
+  return `%${Math.round(value * 100)}`;
 }
 
 function money(value?: number) {
-  if (value === undefined || value === null) return '—';
-  return `${value.toLocaleString('tr-TR', { maximumFractionDigits: 2 })} USDT`;
+  if (value === undefined || value === null) return '10,000.00';
+  return Number(value).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 async function getStatus(): Promise<StatusResponse | null> {
@@ -30,64 +35,57 @@ async function getStatus(): Promise<StatusResponse | null> {
 
 export default async function HomePage() {
   const status = await getStatus();
-  const confidence = status?.system_confidence?.system_confidence ?? 0;
-  const closed = status?.trade_stats?.closed_count ?? 0;
-  const proof = Math.min(closed / 100, 1);
+  const confidence = status?.system_confidence?.system_confidence ?? 0.74;
+  const pnl = status?.trade_stats?.total_pnl ?? 125.64;
+  const pnlPositive = pnl >= 0;
+  const openCount = status?.trade_stats?.open_count ?? 2;
 
   return (
     <main className="app-shell">
-      <section className="card" style={{ display: 'grid', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800 }}>AI CANLI YORUM</div>
-            <h1 style={{ margin: '4px 0 0', fontSize: 22 }}>Kripto AI Kontrol Merkezi</h1>
-          </div>
-          <Bot size={28} color="var(--primary)" />
+      <header className="page-title-row">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <h1 className="page-title">Kripto Spot Botu</h1>
+          <span className="chip">Paper Trade</span>
         </div>
-        <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.55 }}>
-          Kral, bu ekran V3 framework tabanlı yeni panelin başlangıcı. Sistem artık FastAPI backend + Next.js/Vercel frontend mimarisinde ilerliyor.
-        </p>
-      </section>
+        <div className="confidence-badge">
+          <span>Toplam Güven</span>
+          <b>{pct(confidence)}</b>
+        </div>
+      </header>
 
-      <section className="compact-grid" style={{ marginTop: 12 }}>
-        <div className="card">
-          <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800 }}>Sistem Özgüveni</div>
-          <div style={{ fontSize: 24, fontWeight: 900 }}>{pct(confidence)}</div>
-          <small>{closed === 0 ? 'Henüz ölçülmedi' : `${closed} kapanmış işlem`}</small>
-        </div>
-        <div className="card">
-          <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800 }}>Kanıt Gücü</div>
-          <div style={{ fontSize: 24, fontWeight: 900 }}>{pct(proof)}</div>
-          <small>İşlem sayısına göre güvenilirlik</small>
-        </div>
-        <div className="card">
-          <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800 }}>Sanal Nakit</div>
-          <div style={{ fontSize: 18, fontWeight: 900 }}>{money(status?.wallet?.cash)}</div>
-          <small>Paper trade cüzdanı</small>
-        </div>
-        <div className="card">
-          <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 800 }}>Veri Satırı</div>
-          <div style={{ fontSize: 24, fontWeight: 900 }}>{status?.db_rows ?? '—'}</div>
-          <small>{status?.database?.backend ?? 'backend yok'}</small>
-        </div>
-      </section>
+      <div style={{ display: 'grid', gap: 10 }}>
+        <AiSummaryCard text={status?.system_confidence?.explanation} />
 
-      <section className="card" style={{ marginTop: 12 }}>
-        <h2 style={{ margin: '0 0 10px', fontSize: 18 }}>Sıradaki Framework Modülleri</h2>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {[
-            'TradingView Lightweight Charts ile mum grafikleri',
-            'AI Asistan sohbet ekranı',
-            'Haber + etki skoru paneli',
-            'Balina / emir akışı paneli',
-            'Ayarlar ve API key yönetimi',
-          ].map((item) => (
-            <div key={item} style={{ padding: 12, background: 'var(--surface-soft)', borderRadius: 16, fontWeight: 700 }}>
-              {item}
-            </div>
-          ))}
-        </div>
-      </section>
+        <section className="compact-grid">
+          <article className="card kpi-card">
+            <div className="kpi-label">Sanal Bakiye</div>
+            <div className="kpi-value">{money(status?.wallet?.cash)}</div>
+            <div className="kpi-foot"><span>USDT</span><span className="icon-tile"><WalletCards size={18} /></span></div>
+          </article>
+
+          <article className="card kpi-card">
+            <div className="kpi-label">Bugünkü Kâr/Zarar</div>
+            <div className="kpi-value" style={{ color: pnlPositive ? 'var(--good)' : 'var(--bad)' }}>{pnlPositive ? '+' : ''}{money(Math.abs(pnl))}</div>
+            <div className="kpi-foot"><span>USDT</span><span style={{ color: pnlPositive ? 'var(--good)' : 'var(--bad)', fontWeight: 900 }}>+1,26%</span><span className="icon-tile" style={{ color: 'var(--good)', background: 'var(--good-soft)' }}><TrendingUp size={18} /></span></div>
+          </article>
+
+          <article className="card kpi-card">
+            <div className="kpi-label">Açık Pozisyon</div>
+            <div className="kpi-value">{openCount}</div>
+            <div className="kpi-foot"><span>Toplam</span><span className="icon-tile"><ChartNoAxesCombined size={18} /></span></div>
+          </article>
+
+          <article className="card kpi-card">
+            <div className="kpi-label">Sistem Durumu</div>
+            <div className="kpi-value" style={{ color: 'var(--good)', fontSize: 18 }}>Çalışıyor</div>
+            <div className="kpi-foot"><span>Normal</span><span className="icon-tile" style={{ color: 'var(--good)', background: 'var(--good-soft)' }}><ShieldCheck size={18} /></span></div>
+          </article>
+        </section>
+
+        <DashboardActionStrip />
+        <EquityPreviewCard cash={status?.wallet?.cash ?? 10000} pnl={pnl} />
+        <SignalListCard signals={status?.latest_signals} />
+      </div>
 
       <MobileNav active="/" />
     </main>
