@@ -45,6 +45,45 @@ def json_safe(value: Any) -> Any:
     return value
 
 
+def chart_overlays(symbol: str) -> dict[str, Any]:
+    markers: list[dict[str, Any]] = []
+    price_lines: list[dict[str, Any]] = []
+    for position in services.storage.all_positions(250):
+        if position.get("symbol") != symbol:
+            continue
+        opened_at = position.get("opened_at")
+        closed_at = position.get("closed_at")
+        status = position.get("status")
+        if opened_at:
+            markers.append(
+                {
+                    "time": opened_at,
+                    "position": "belowBar",
+                    "shape": "arrowUp",
+                    "text": "AL",
+                    "color": "#16a34a",
+                    "price": position.get("entry_price"),
+                }
+            )
+        if closed_at:
+            pnl = float(position.get("pnl") or 0)
+            markers.append(
+                {
+                    "time": closed_at,
+                    "position": "aboveBar" if pnl >= 0 else "belowBar",
+                    "shape": "arrowDown" if pnl >= 0 else "circle",
+                    "text": "KÂR" if pnl >= 0 else "ZARAR",
+                    "color": "#16a34a" if pnl >= 0 else "#dc2626",
+                    "price": position.get("close_price"),
+                }
+            )
+        if status == "OPEN":
+            price_lines.append({"price": position.get("stop_loss"), "title": "SL", "color": "#dc2626", "lineStyle": "dashed"})
+            price_lines.append({"price": position.get("take_profit"), "title": "TP", "color": "#16a34a", "lineStyle": "dashed"})
+            price_lines.append({"price": position.get("entry_price"), "title": "Giriş", "color": "#2563eb", "lineStyle": "solid"})
+    return {"markers": markers, "price_lines": price_lines}
+
+
 class AssistantRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     context: dict[str, Any] | None = None
@@ -105,7 +144,13 @@ def chart_data(symbol: str, timeframe: str, limit: int = 300) -> dict[str, Any]:
                 "Grafik canlı mum verisiyle doldurulamadı",
                 {"channel": "error", "symbol": normalized_symbol, "timeframe": timeframe, "error": str(exc)},
             )
-    return {"symbol": normalized_symbol, "timeframe": timeframe, "candles": json_safe(candles), "live_filled": live_filled}
+    return {
+        "symbol": normalized_symbol,
+        "timeframe": timeframe,
+        "candles": json_safe(candles),
+        "live_filled": live_filled,
+        "overlays": json_safe(chart_overlays(normalized_symbol)),
+    }
 
 
 @app.post("/api/assistant/ask")
