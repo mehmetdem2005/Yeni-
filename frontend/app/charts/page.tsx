@@ -15,11 +15,30 @@ type Candle = {
   volume: number;
 };
 
+type TradeMarker = {
+  time: string;
+  position: 'aboveBar' | 'belowBar' | 'inBar';
+  shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
+  text: string;
+  color: string;
+};
+
+type PriceLine = {
+  price: number;
+  title: string;
+  color: string;
+  lineStyle?: 'solid' | 'dashed';
+};
+
 type ChartResponse = {
   symbol: string;
   timeframe: string;
   candles: Candle[];
   live_filled?: boolean;
+  overlays?: {
+    markers?: TradeMarker[];
+    price_lines?: PriceLine[];
+  };
 };
 
 type PageProps = {
@@ -77,6 +96,7 @@ export default async function ChartsPage({ searchParams }: PageProps) {
           <h1 style={{ margin: 0, fontSize: 22 }}>{chart.symbol} Mum Grafiği</h1>
           <p style={{ margin: '4px 0 0', color: 'var(--muted)' }}>
             Zaman dilimi: {chart.timeframe} · Mum sayısı: {chart.candles.length} {chart.live_filled ? '· canlı dolduruldu' : ''}
+            {chart.overlays?.markers?.length ? ` · ${chart.overlays.markers.length} işlem işareti` : ''}
           </p>
         </div>
         <ChartControls
@@ -93,7 +113,16 @@ export default async function ChartsPage({ searchParams }: PageProps) {
           showMfi={showMfi}
         />
         <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
-          <LightweightCandles candles={chart.candles} showVolume={showVolume} showEma={showEma} showBollinger={showBollinger} showVwap={showVwap} emaPeriod={50} />
+          <LightweightCandles
+            candles={chart.candles}
+            showVolume={showVolume}
+            showEma={showEma}
+            showBollinger={showBollinger}
+            showVwap={showVwap}
+            emaPeriod={50}
+            markers={chart.overlays?.markers ?? []}
+            priceLines={chart.overlays?.price_lines ?? []}
+          />
         </div>
         {showRsi ? (
           <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
