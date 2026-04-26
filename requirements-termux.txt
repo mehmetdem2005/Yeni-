@@ -1,0 +1,4 @@
+# Termux-light mode intentionally avoids heavy compiled packages.
+# Install the project itself with:
+# python -m pip install -e .
+
