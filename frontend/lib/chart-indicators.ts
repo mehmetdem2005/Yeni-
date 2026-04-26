@@ -86,6 +86,21 @@ export function emaLine(candles: CandlePoint[], period: number): LinePoint[] {
   return points;
 }
 
+export function vwapLine(candles: CandlePoint[]): LinePoint[] {
+  let cumulativeTypicalVolume = 0;
+  let cumulativeVolume = 0;
+  const points: LinePoint[] = [];
+  candles.forEach((item) => {
+    const typical = (Number(item.high) + Number(item.low) + Number(item.close)) / 3;
+    const volume = Math.max(Number(item.volume), 0);
+    cumulativeTypicalVolume += typical * volume;
+    cumulativeVolume += volume;
+    if (cumulativeVolume <= 0) return;
+    points.push({ time: toUnixTime(item.timestamp), value: cumulativeTypicalVolume / cumulativeVolume });
+  });
+  return points;
+}
+
 export function bollingerBands(candles: CandlePoint[], period = 20, multiplier = 2): BollingerBands {
   const closes = candles.map((item) => Number(item.close));
   const middleValues = sma(closes, period);
@@ -206,6 +221,74 @@ export function macdPoints(candles: CandlePoint[], fast = 12, slow = 26, signalP
     });
   });
 
+  return points;
+}
+
+export function adxLine(candles: CandlePoint[], period = 14): LinePoint[] {
+  if (candles.length < period * 2) return [];
+  const tr: number[] = [];
+  const plusDm: number[] = [];
+  const minusDm: number[] = [];
+
+  for (let index = 1; index < candles.length; index += 1) {
+    const current = candles[index];
+    const previous = candles[index - 1];
+    const upMove = Number(current.high) - Number(previous.high);
+    const downMove = Number(previous.low) - Number(current.low);
+    plusDm.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    minusDm.push(downMove > upMove && downMove > 0 ? downMove : 0);
+    tr.push(Math.max(
+      Number(current.high) - Number(current.low),
+      Math.abs(Number(current.high) - Number(previous.close)),
+      Math.abs(Number(current.low) - Number(previous.close)),
+    ));
+  }
+
+  let trSmooth = tr.slice(0, period).reduce((sum, item) => sum + item, 0);
+  let plusSmooth = plusDm.slice(0, period).reduce((sum, item) => sum + item, 0);
+  let minusSmooth = minusDm.slice(0, period).reduce((sum, item) => sum + item, 0);
+  const dxValues: Array<number | null> = candles.map(() => null);
+
+  for (let index = period; index < tr.length; index += 1) {
+    trSmooth = trSmooth - trSmooth / period + tr[index];
+    plusSmooth = plusSmooth - plusSmooth / period + plusDm[index];
+    minusSmooth = minusSmooth - minusSmooth / period + minusDm[index];
+    const plusDi = trSmooth === 0 ? 0 : 100 * (plusSmooth / trSmooth);
+    const minusDi = trSmooth === 0 ? 0 : 100 * (minusSmooth / trSmooth);
+    const denominator = plusDi + minusDi;
+    dxValues[index + 1] = denominator === 0 ? 0 : 100 * Math.abs(plusDi - minusDi) / denominator;
+  }
+
+  const compactDx = dxValues.filter((value): value is number => value !== null);
+  if (compactDx.length < period) return [];
+  const adxValues = ema(compactDx, period);
+  const firstDxIndex = dxValues.findIndex((value) => value !== null);
+  const points: LinePoint[] = [];
+  adxValues.forEach((value, compactIndex) => {
+    if (value === null) return;
+    const candleIndex = firstDxIndex + compactIndex;
+    if (!candles[candleIndex]) return;
+    points.push({ time: toUnixTime(candles[candleIndex].timestamp), value });
+  });
+  return points;
+}
+
+export function mfiLine(candles: CandlePoint[], period = 14): LinePoint[] {
+  if (candles.length <= period) return [];
+  const rawMoneyFlow = candles.map((item) => ((Number(item.high) + Number(item.low) + Number(item.close)) / 3) * Number(item.volume));
+  const typical = candles.map((item) => (Number(item.high) + Number(item.low) + Number(item.close)) / 3);
+  const points: LinePoint[] = [];
+
+  for (let index = period; index < candles.length; index += 1) {
+    let positive = 0;
+    let negative = 0;
+    for (let lookback = index - period + 1; lookback <= index; lookback += 1) {
+      if (typical[lookback] > typical[lookback - 1]) positive += rawMoneyFlow[lookback];
+      else if (typical[lookback] < typical[lookback - 1]) negative += rawMoneyFlow[lookback];
+    }
+    const value = negative === 0 ? 100 : 100 - 100 / (1 + positive / negative);
+    points.push({ time: toUnixTime(candles[index].timestamp), value });
+  }
   return points;
 }
 
