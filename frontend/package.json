@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@tradingview/lightweight-charts": "^4.2.2",
+    "lightweight-charts": "^4.2.2",
     "lucide-react": "^0.468.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
