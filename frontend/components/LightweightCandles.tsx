@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { createChart, ColorType, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts';
-import { bollingerBands, emaLine } from '@/lib/chart-indicators';
+import { bollingerBands, emaLine, vwapLine } from '@/lib/chart-indicators';
 
 type Candle = {
   timestamp: string;
@@ -19,6 +19,7 @@ type Props = {
   showVolume?: boolean;
   showEma?: boolean;
   showBollinger?: boolean;
+  showVwap?: boolean;
   emaPeriod?: number;
 };
 
@@ -26,12 +27,13 @@ function toUnixTime(timestamp: string) {
   return Math.floor(new Date(timestamp).getTime() / 1000);
 }
 
-export function LightweightCandles({ candles, height = 390, showVolume = true, showEma = true, showBollinger = false, emaPeriod = 50 }: Props) {
+export function LightweightCandles({ candles, height = 390, showVolume = true, showEma = true, showBollinger = false, showVwap = false, emaPeriod = 50 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const emaRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const vwapRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbUpperRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbMiddleRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbLowerRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -93,6 +95,14 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
       title: `EMA ${emaPeriod}`,
     });
 
+    const vwapSeries = chart.addLineSeries({
+      color: '#0f766e',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      title: 'VWAP',
+    });
+
     const bbUpper = chart.addLineSeries({ color: 'rgba(124, 58, 237, 0.65)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: 'BB Üst' });
     const bbMiddle = chart.addLineSeries({ color: 'rgba(124, 58, 237, 0.42)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: 'BB Orta' });
     const bbLower = chart.addLineSeries({ color: 'rgba(124, 58, 237, 0.65)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: 'BB Alt' });
@@ -101,6 +111,7 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
     candleRef.current = candleSeries;
     volumeRef.current = volumeSeries;
     emaRef.current = emaSeries;
+    vwapRef.current = vwapSeries;
     bbUpperRef.current = bbUpper;
     bbMiddleRef.current = bbMiddle;
     bbLowerRef.current = bbLower;
@@ -119,6 +130,7 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
       candleRef.current = null;
       volumeRef.current = null;
       emaRef.current = null;
+      vwapRef.current = null;
       bbUpperRef.current = null;
       bbMiddleRef.current = null;
       bbLowerRef.current = null;
@@ -126,7 +138,7 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
   }, [height, emaPeriod]);
 
   useEffect(() => {
-    if (!candleRef.current || !volumeRef.current || !emaRef.current || !chartRef.current || !bbUpperRef.current || !bbMiddleRef.current || !bbLowerRef.current) return;
+    if (!candleRef.current || !volumeRef.current || !emaRef.current || !vwapRef.current || !chartRef.current || !bbUpperRef.current || !bbMiddleRef.current || !bbLowerRef.current) return;
 
     const candleData: CandlestickData[] = candles.map((item) => ({
       time: toUnixTime(item.timestamp) as CandlestickData['time'],
@@ -145,16 +157,18 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
       : [];
 
     const emaData = showEma ? emaLine(candles, emaPeriod) : [];
+    const vwapData = showVwap ? vwapLine(candles) : [];
     const bands = showBollinger ? bollingerBands(candles, 20, 2) : { upper: [], middle: [], lower: [] };
 
     candleRef.current.setData(candleData);
     volumeRef.current.setData(volumeData);
     emaRef.current.setData(emaData);
+    vwapRef.current.setData(vwapData);
     bbUpperRef.current.setData(bands.upper);
     bbMiddleRef.current.setData(bands.middle);
     bbLowerRef.current.setData(bands.lower);
     chartRef.current.timeScale().fitContent();
-  }, [candles, showVolume, showEma, showBollinger, emaPeriod]);
+  }, [candles, showVolume, showEma, showBollinger, showVwap, emaPeriod]);
 
   if (!candles.length) {
     return (
