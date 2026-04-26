@@ -13,6 +13,7 @@ dependencies = []
 [project.scripts]
 crypto-paper-bot = "crypto_paper_bot.cli:main"
 crypto-paper-bot-app = "crypto_paper_bot.app:main"
+crypto-paper-bot-worker = "crypto_paper_bot.worker:main"
 
 [project.optional-dependencies]
 termux = []
