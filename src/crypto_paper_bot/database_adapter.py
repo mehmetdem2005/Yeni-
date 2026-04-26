@@ -35,29 +35,13 @@ class StoragePort(Protocol):
     def all_positions(self, limit: int = 50) -> list[dict[str, Any]]: ...
     def wallet(self) -> dict[str, float]: ...
     def open_position(self, symbol: str, entry_price: float, qty: float, notional: float, stop_loss: float, take_profit: float) -> bool: ...
-    def close_position(self, position_id: int, close_price: float, pnl: float, reason: str) -> None: ...
+    def close_position(self, position_id: int | str, close_price: float, pnl: float, reason: str) -> None: ...
     def record_equity(self, prices: dict[str, float]) -> dict[str, float]: ...
     def equity_points(self, limit: int = 100) -> list[dict[str, Any]]: ...
     def trade_stats(self) -> dict[str, Any]: ...
     def event(self, level: str, message: str, payload: dict[str, Any] | None = None) -> None: ...
     def latest_events(self, limit: int = 20) -> list[dict[str, Any]]: ...
     def reset_paper_account(self) -> None: ...
-
-
-class PostgresStorageNotReady:
-    """Placeholder adapter for the cloud DB path.
-
-    The Supabase schema exists, but the runtime storage implementation is not yet
-    safe to switch on. Raising loudly is better than pretending cloud persistence
-    works while still writing locally.
-    """
-
-    def __init__(self, database_url: str) -> None:
-        self.database_url = database_url
-        raise RuntimeError(
-            "Postgres/Supabase storage adapter is planned but not implemented yet. "
-            "Unset DATABASE_URL to use SQLite, or implement postgres_storage.py before cloud production."
-        )
 
 
 def detect_database_config() -> DatabaseConfig:
@@ -86,7 +70,9 @@ def create_storage(config: DatabaseConfig | None = None) -> StoragePort:
         return BotStorage(Path(config.sqlite_path))
     if not config.database_url:
         raise RuntimeError("DATABASE_URL is required for Postgres backend.")
-    return PostgresStorageNotReady(config.database_url)
+    from crypto_paper_bot.postgres_storage import PostgresStorage
+
+    return PostgresStorage(config.database_url)
 
 
 def storage_runtime_info(config: DatabaseConfig | None = None) -> dict[str, Any]:
@@ -97,10 +83,10 @@ def storage_runtime_info(config: DatabaseConfig | None = None) -> dict[str, Any]
         "database_url_present": bool(config.database_url),
         "supabase_url_present": bool(config.supabase_url),
         "supabase_service_key_present": bool(config.supabase_service_key),
-        "postgres_ready": False,
+        "postgres_ready": config.backend == DatabaseBackend.POSTGRES,
         "note": (
             "SQLite runtime active."
             if config.backend == DatabaseBackend.SQLITE
-            else "Postgres schema exists, but runtime adapter is intentionally not enabled yet."
+            else "Postgres/Supabase runtime adapter active. Make sure supabase/schema.sql has been applied."
         ),
     }
