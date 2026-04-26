@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: crypto-paper-bot-api
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements-cloud.txt && pip install -e .
+    startCommand: python -m crypto_paper_bot.app
+    envVars:
+      - key: APP_ENV
+        value: render
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: BINANCE_ENABLE_LIVE_TRADING
+        value: "false"
+      - key: BINANCE_ENABLE_WITHDRAWALS
+        value: "false"
+      - key: MIN_API_INTERVAL_SECONDS
+        value: "10"
+
+  - type: worker
+    name: crypto-paper-bot-worker
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements-cloud.txt && pip install -e .
+    startCommand: python -m crypto_paper_bot.worker
+    envVars:
+      - key: APP_ENV
+        value: render
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: BINANCE_ENABLE_LIVE_TRADING
+        value: "false"
+      - key: BINANCE_ENABLE_WITHDRAWALS
+        value: "false"
+      - key: MIN_API_INTERVAL_SECONDS
+        value: "10"
+      - key: WORKER_CYCLE_SECONDS
+        value: "600"
