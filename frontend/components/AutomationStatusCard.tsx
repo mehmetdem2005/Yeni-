@@ -23,6 +23,8 @@ type ConfirmAction = {
   dangerText: string;
 } | null;
 
+const intervals = [10, 30, 60, 300];
+
 function formatTime(value?: string | null) {
   if (!value) return 'Henüz yok';
   try {
@@ -30,6 +32,12 @@ function formatTime(value?: string | null) {
   } catch {
     return value;
   }
+}
+
+function intervalLabel(value: number) {
+  if (value < 60) return `${value}s`;
+  if (value === 60) return '1dk';
+  return `${Math.round(value / 60)}dk`;
 }
 
 export function AutomationStatusCard() {
@@ -63,9 +71,24 @@ export function AutomationStatusCard() {
     }
   }
 
+  async function updateInterval(seconds: number) {
+    setBusy(`interval-${seconds}`);
+    setMessage(`${intervalLabel(seconds)} aralığı ayarlanıyor...`);
+    try {
+      const data = await apiPost<AutomationStatus>('/api/control/interval', { interval_seconds: seconds });
+      setStatus(data);
+      setMessage(data.note || `Aralık ${intervalLabel(seconds)} yapıldı`);
+    } catch {
+      setMessage('Aralık güncellenemedi');
+    } finally {
+      setBusy(null);
+    }
+  }
+
   useEffect(() => { refresh(); }, []);
 
   const running = Boolean(status?.running);
+  const activeInterval = status?.interval_seconds ?? 10;
   return (
     <section className="card" style={{ display: 'grid', gap: 10, position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -88,7 +111,7 @@ export function AutomationStatusCard() {
           <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Tur</div>
         </div>
         <div style={{ borderRadius: 14, background: 'var(--surface-soft)', padding: 9, textAlign: 'center' }}>
-          <b>{status?.interval_seconds ?? 10}s</b>
+          <b>{intervalLabel(activeInterval)}</b>
           <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Aralık</div>
         </div>
       </div>
@@ -98,6 +121,37 @@ export function AutomationStatusCard() {
         <div>
           <b style={{ fontSize: 12 }}>Son cycle: {formatTime(status?.last_cycle_at)}</b>
           <p style={{ margin: '3px 0 0', color: 'var(--muted)', fontSize: 11, lineHeight: 1.35 }}>{status?.last_error || message}</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 7 }}>
+        <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 900 }}>ÇALIŞMA ARALIĞI</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
+          {intervals.map((seconds) => {
+            const active = activeInterval === seconds;
+            const loading = busy === `interval-${seconds}`;
+            return (
+              <button
+                key={seconds}
+                type="button"
+                onClick={() => updateInterval(seconds)}
+                disabled={Boolean(busy)}
+                style={{
+                  minHeight: 38,
+                  border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+                  borderRadius: 13,
+                  background: active ? 'var(--primary-soft)' : '#fff',
+                  color: active ? 'var(--primary)' : 'var(--text)',
+                  fontWeight: 950,
+                  fontSize: 12,
+                  display: 'grid',
+                  placeItems: 'center',
+                }}
+              >
+                {loading ? <Loader2 className="spin" size={15} /> : intervalLabel(seconds)}
+              </button>
+            );
+          })}
         </div>
       </div>
 
