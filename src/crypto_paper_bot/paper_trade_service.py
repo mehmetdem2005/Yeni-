@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from crypto_paper_bot.database_adapter import StoragePort
 from crypto_paper_bot.service_utils import RateLimitedBinance
-from crypto_paper_bot.storage import BotStorage
 
 
 class PaperTradeService:
-    def __init__(self, storage: BotStorage, market: RateLimitedBinance) -> None:
+    def __init__(self, storage: StoragePort, market: RateLimitedBinance) -> None:
         self.storage = storage
         self.market = market
 
@@ -68,7 +68,9 @@ class PaperTradeService:
 
                 if reason:
                     pnl = (price - float(pos["entry_price"])) * float(pos["qty"])
-                    self.storage.close_position(int(pos["id"]), price, pnl, reason)
+                    # SQLite uses integer IDs. Supabase/Postgres uses UUID strings.
+                    # The StoragePort accepts both, so do not coerce to int here.
+                    self.storage.close_position(pos["id"], price, pnl, reason)
                     record = {"symbol": pos["symbol"], "reason": reason, "pnl": pnl, "close_price": price}
                     closed.append(record)
                     self.storage.event("INFO", "Sanal işlem kapandı", {"channel": "trade", **record})
