@@ -1,5 +1,6 @@
 import { ChartNoAxesCombined, ShieldCheck, TrendingUp, WalletCards } from 'lucide-react';
 import { AiSummaryCard } from '@/components/AiSummaryCard';
+import { AutomationStatusCard } from '@/components/AutomationStatusCard';
 import { DashboardActionStrip } from '@/components/DashboardActionStrip';
 import { EquityPreviewCard } from '@/components/EquityPreviewCard';
 import { MobileNav } from '@/components/MobileNav';
@@ -13,6 +14,7 @@ type StatusResponse = {
   wallet?: { cash?: number; starting_balance?: number };
   system_confidence?: { system_confidence?: number; status?: string; explanation?: string };
   database?: { backend?: string; note?: string };
+  automation?: { running?: boolean };
 };
 
 function pct(value?: number) {
@@ -39,6 +41,7 @@ export default async function HomePage() {
   const pnl = status?.trade_stats?.total_pnl ?? 125.64;
   const pnlPositive = pnl >= 0;
   const openCount = status?.trade_stats?.open_count ?? 2;
+  const running = Boolean(status?.automation?.running);
 
   return (
     <main className="app-shell">
@@ -77,12 +80,13 @@ export default async function HomePage() {
 
           <article className="card kpi-card">
             <div className="kpi-label">Sistem Durumu</div>
-            <div className="kpi-value" style={{ color: 'var(--good)', fontSize: 18 }}>Çalışıyor</div>
-            <div className="kpi-foot"><span>Normal</span><span className="icon-tile" style={{ color: 'var(--good)', background: 'var(--good-soft)' }}><ShieldCheck size={18} /></span></div>
+            <div className="kpi-value" style={{ color: running ? 'var(--good)' : 'var(--muted)', fontSize: 18 }}>{running ? 'Çalışıyor' : 'Beklemede'}</div>
+            <div className="kpi-foot"><span>{running ? 'Otomatik' : 'Manuel'}</span><span className="icon-tile" style={{ color: running ? 'var(--good)' : 'var(--primary)', background: running ? 'var(--good-soft)' : 'var(--primary-soft)' }}><ShieldCheck size={18} /></span></div>
           </article>
         </section>
 
         <DashboardActionStrip />
+        <AutomationStatusCard />
         <EquityPreviewCard cash={status?.wallet?.cash ?? 10000} pnl={pnl} />
         <SignalListCard signals={status?.latest_signals} />
       </div>
