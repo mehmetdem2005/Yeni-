@@ -67,11 +67,7 @@ class PaperTradeService:
                     reason = "KÂR AL"
 
                 if reason:
-                    pnl = (price - float(pos["entry_price"])) * float(pos["qty"])
-                    # SQLite uses integer IDs. Supabase/Postgres uses UUID strings.
-                    # The StoragePort accepts both, so do not coerce to int here.
-                    self.storage.close_position(pos["id"], price, pnl, reason)
-                    record = {"symbol": pos["symbol"], "reason": reason, "pnl": pnl, "close_price": price}
+                    record = self._close_position_at_price(pos, price, reason)
                     closed.append(record)
                     self.storage.event("INFO", "Sanal işlem kapandı", {"channel": "trade", **record})
             except Exception as exc:
@@ -83,3 +79,33 @@ class PaperTradeService:
 
         equity = self.storage.record_equity(prices)
         return {"closed": closed, "equity": equity}
+
+    def emergency_close_all(self) -> dict[str, Any]:
+        """Close every open paper position using current bid price.
+
+        This is paper-trade only. It simulates an immediate emergency market exit.
+        """
+        closed: list[dict[str, Any]] = []
+        errors: list[dict[str, Any]] = []
+        prices: dict[str, float] = {}
+
+        for pos in self.storage.open_positions():
+            try:
+                book = self.market.order_book(pos["symbol"], 10)
+                price = float(book.bid)
+                prices[pos["symbol"]] = price
+                record = self._close_position_at_price(pos, price, "ACİL KAPAT")
+                closed.append(record)
+                self.storage.event("WARNING", "Acil komutla sanal işlem kapandı", {"channel": "risk", **record})
+            except Exception as exc:
+                error = {"symbol": pos.get("symbol"), "error": str(exc)}
+                errors.append(error)
+                self.storage.event("ERROR", "Acil kapatma başarısız oldu", {"channel": "error", **error})
+
+        equity = self.storage.record_equity(prices)
+        return {"closed": closed, "errors": errors, "equity": equity}
+
+    def _close_position_at_price(self, pos: dict[str, Any], price: float, reason: str) -> dict[str, Any]:
+        pnl = (price - float(pos["entry_price"])) * float(pos["qty"])
+        self.storage.close_position(pos["id"], price, pnl, reason)
+        return {"symbol": pos["symbol"], "reason": reason, "pnl": pnl, "close_price": price}
