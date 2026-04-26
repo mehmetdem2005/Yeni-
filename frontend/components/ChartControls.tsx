@@ -5,6 +5,8 @@ type Props = {
   timeframe: string;
   showVolume: boolean;
   showEma: boolean;
+  showRsi: boolean;
+  showAtr: boolean;
 };
 
 const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT'];
@@ -16,6 +18,8 @@ function buildUrl(next: Partial<Props>, current: Props) {
   params.set('timeframe', next.timeframe ?? current.timeframe);
   params.set('volume', String(next.showVolume ?? current.showVolume));
   params.set('ema', String(next.showEma ?? current.showEma));
+  params.set('rsi', String(next.showRsi ?? current.showRsi));
+  params.set('atr', String(next.showAtr ?? current.showAtr));
   return `/charts?${params.toString()}`;
 }
 
@@ -48,7 +52,7 @@ export function ChartControls(props: Props) {
       </select>
       <details style={{ position: 'relative' }}>
         <summary style={{ listStyle: 'none', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', background: 'var(--surface-soft)', cursor: 'pointer', fontWeight: 900 }}>⋮</summary>
-        <div style={{ position: 'absolute', right: 0, top: 48, zIndex: 10, minWidth: 220, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-soft)', padding: 10 }}>
+        <div style={{ position: 'absolute', right: 0, top: 48, zIndex: 10, minWidth: 230, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-soft)', padding: 10 }}>
           <b>Grafik Ayarları</b>
           <p style={{ margin: '8px 0', color: 'var(--muted)', fontSize: 13 }}>Ayarlar URL ile taşınır; sonraki adımda kullanıcı profilinde saklanacak.</p>
           <label style={{ display: 'block', marginTop: 8 }}>
@@ -65,8 +69,20 @@ export function ChartControls(props: Props) {
               onChange={(event) => { window.location.href = buildUrl({ showEma: event.target.checked }, props); }}
             /> EMA 50
           </label>
-          <label style={{ display: 'block', marginTop: 8, color: 'var(--muted)' }}><input type="checkbox" disabled /> RSI</label>
-          <label style={{ display: 'block', marginTop: 8, color: 'var(--muted)' }}><input type="checkbox" disabled /> ATR</label>
+          <label style={{ display: 'block', marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={props.showRsi}
+              onChange={(event) => { window.location.href = buildUrl({ showRsi: event.target.checked }, props); }}
+            /> RSI 14
+          </label>
+          <label style={{ display: 'block', marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={props.showAtr}
+              onChange={(event) => { window.location.href = buildUrl({ showAtr: event.target.checked }, props); }}
+            /> ATR 14
+          </label>
         </div>
       </details>
     </div>
