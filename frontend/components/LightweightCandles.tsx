@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData } from 'lightweight-charts';
+import { createChart, ColorType, LineStyle, type IChartApi, type ISeriesApi, type CandlestickData, type HistogramData, type SeriesMarker } from 'lightweight-charts';
 import { bollingerBands, emaLine, vwapLine } from '@/lib/chart-indicators';
 
 type Candle = {
@@ -13,6 +13,21 @@ type Candle = {
   volume: number;
 };
 
+type TradeMarker = {
+  time: string;
+  position: 'aboveBar' | 'belowBar' | 'inBar';
+  shape: 'arrowUp' | 'arrowDown' | 'circle' | 'square';
+  text: string;
+  color: string;
+};
+
+type PriceLine = {
+  price: number;
+  title: string;
+  color: string;
+  lineStyle?: 'solid' | 'dashed';
+};
+
 type Props = {
   candles: Candle[];
   height?: number;
@@ -21,13 +36,15 @@ type Props = {
   showBollinger?: boolean;
   showVwap?: boolean;
   emaPeriod?: number;
+  markers?: TradeMarker[];
+  priceLines?: PriceLine[];
 };
 
 function toUnixTime(timestamp: string) {
   return Math.floor(new Date(timestamp).getTime() / 1000);
 }
 
-export function LightweightCandles({ candles, height = 390, showVolume = true, showEma = true, showBollinger = false, showVwap = false, emaPeriod = 50 }: Props) {
+export function LightweightCandles({ candles, height = 390, showVolume = true, showEma = true, showBollinger = false, showVwap = false, emaPeriod = 50, markers = [], priceLines = [] }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -37,6 +54,7 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
   const bbUpperRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbMiddleRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbLowerRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const activePriceLinesRef = useRef<Array<{ applyOptions?: unknown; price?: number; id?: string }>>([]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -87,22 +105,8 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
       },
     });
 
-    const emaSeries = chart.addLineSeries({
-      color: '#2563eb',
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      title: `EMA ${emaPeriod}`,
-    });
-
-    const vwapSeries = chart.addLineSeries({
-      color: '#0f766e',
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      title: 'VWAP',
-    });
-
+    const emaSeries = chart.addLineSeries({ color: '#2563eb', lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: `EMA ${emaPeriod}` });
+    const vwapSeries = chart.addLineSeries({ color: '#0f766e', lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: 'VWAP' });
     const bbUpper = chart.addLineSeries({ color: 'rgba(124, 58, 237, 0.65)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: 'BB Üst' });
     const bbMiddle = chart.addLineSeries({ color: 'rgba(124, 58, 237, 0.42)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: 'BB Orta' });
     const bbLower = chart.addLineSeries({ color: 'rgba(124, 58, 237, 0.65)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, title: 'BB Alt' });
@@ -134,6 +138,7 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
       bbUpperRef.current = null;
       bbMiddleRef.current = null;
       bbLowerRef.current = null;
+      activePriceLinesRef.current = [];
     };
   }, [height, emaPeriod]);
 
@@ -159,16 +164,43 @@ export function LightweightCandles({ candles, height = 390, showVolume = true, s
     const emaData = showEma ? emaLine(candles, emaPeriod) : [];
     const vwapData = showVwap ? vwapLine(candles) : [];
     const bands = showBollinger ? bollingerBands(candles, 20, 2) : { upper: [], middle: [], lower: [] };
+    const tradeMarkers: SeriesMarker<CandlestickData['time']>[] = markers.map((marker) => ({
+      time: toUnixTime(marker.time) as CandlestickData['time'],
+      position: marker.position,
+      shape: marker.shape,
+      color: marker.color,
+      text: marker.text,
+    }));
 
     candleRef.current.setData(candleData);
+    candleRef.current.setMarkers(tradeMarkers);
     volumeRef.current.setData(volumeData);
     emaRef.current.setData(emaData);
     vwapRef.current.setData(vwapData);
     bbUpperRef.current.setData(bands.upper);
     bbMiddleRef.current.setData(bands.middle);
     bbLowerRef.current.setData(bands.lower);
+
+    for (const line of activePriceLinesRef.current) {
+      try {
+        candleRef.current.removePriceLine(line as never);
+      } catch {
+        // ignore stale line handles from chart re-renders
+      }
+    }
+    activePriceLinesRef.current = priceLines
+      .filter((line) => Number.isFinite(Number(line.price)))
+      .map((line) => candleRef.current!.createPriceLine({
+        price: Number(line.price),
+        color: line.color,
+        lineWidth: 2,
+        lineStyle: line.lineStyle === 'dashed' ? LineStyle.Dashed : LineStyle.Solid,
+        axisLabelVisible: true,
+        title: line.title,
+      }) as never);
+
     chartRef.current.timeScale().fitContent();
-  }, [candles, showVolume, showEma, showBollinger, showVwap, emaPeriod]);
+  }, [candles, showVolume, showEma, showBollinger, showVwap, emaPeriod, markers, priceLines]);
 
   if (!candles.length) {
     return (
