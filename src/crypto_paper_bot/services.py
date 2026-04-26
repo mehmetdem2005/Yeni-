@@ -4,6 +4,7 @@ from typing import Any
 
 from crypto_paper_bot.analysis_service import AnalysisService
 from crypto_paper_bot.confidence_engine import calculate_system_confidence, system_confidence_as_plain_dict
+from crypto_paper_bot.database_adapter import StoragePort, create_storage, storage_runtime_info
 from crypto_paper_bot.log_channels import normalize_legacy_event
 from crypto_paper_bot.market_data_service import DEFAULT_SYMBOLS, MarketDataService
 from crypto_paper_bot.news_feed import NewsFeedClient
@@ -12,7 +13,6 @@ from crypto_paper_bot.paper_trade_service import PaperTradeService
 from crypto_paper_bot.rate_limiter import RateLimiter
 from crypto_paper_bot.real_market import BinancePublicClient
 from crypto_paper_bot.service_utils import RateLimitedBinance, store_logs
-from crypto_paper_bot.storage import BotStorage
 from crypto_paper_bot.training_service import TrainingService
 
 SYMBOLS = DEFAULT_SYMBOLS
@@ -30,8 +30,8 @@ class AppServices:
     - NewsService
     """
 
-    def __init__(self, storage: BotStorage | None = None) -> None:
-        self.storage = storage or BotStorage()
+    def __init__(self, storage: StoragePort | None = None) -> None:
+        self.storage = storage or create_storage()
         self.rate_limiter = RateLimiter(min_interval_seconds=10)
         self.market = RateLimitedBinance(
             storage=self.storage,
@@ -115,6 +115,7 @@ class AppServices:
             "positions": self.storage.all_positions(30),
             "system_confidence": self.current_system_confidence(),
             "rate_limits": self.rate_limiter.snapshot(),
+            "database": storage_runtime_info(),
         }
 
     def reset_account(self) -> None:
