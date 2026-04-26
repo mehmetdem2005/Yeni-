@@ -28,6 +28,11 @@ function first(value: string | string[] | undefined, fallback: string) {
   return value ?? fallback;
 }
 
+function boolParam(value: string | string[] | undefined, fallback: boolean) {
+  const raw = first(value, String(fallback));
+  return raw !== 'false';
+}
+
 async function getChart(symbol: string, timeframe: string): Promise<ChartResponse> {
   try {
     return await apiGet<ChartResponse>(`/api/chart/${symbol}/${timeframe}?limit=300`);
@@ -40,6 +45,8 @@ export default async function ChartsPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const symbol = first(params.symbol, 'BTCUSDT');
   const timeframe = first(params.timeframe, '1h');
+  const showVolume = boolParam(params.volume, true);
+  const showEma = boolParam(params.ema, true);
   const chart = await getChart(symbol, timeframe);
 
   return (
@@ -52,9 +59,9 @@ export default async function ChartsPage({ searchParams }: PageProps) {
             Zaman dilimi: {chart.timeframe} · Mum sayısı: {chart.candles.length} {chart.live_filled ? '· canlı dolduruldu' : ''}
           </p>
         </div>
-        <ChartControls symbol={symbol} timeframe={timeframe} />
+        <ChartControls symbol={symbol} timeframe={timeframe} showVolume={showVolume} showEma={showEma} />
         <div style={{ borderRadius: 18, background: '#fff', border: '1px solid var(--border)', overflow: 'hidden', padding: 8 }}>
-          <LightweightCandles candles={chart.candles} />
+          <LightweightCandles candles={chart.candles} showVolume={showVolume} showEma={showEma} emaPeriod={50} />
         </div>
       </section>
       <MobileNav active="/charts" />
