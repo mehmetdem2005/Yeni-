@@ -1,11 +1,12 @@
-import { Activity, Bot, CandlestickChart, Newspaper, Settings } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, Home, Newspaper, ScrollText, Settings } from 'lucide-react';
 
 const items = [
-  { href: '/', label: 'Ana', icon: Activity },
-  { href: '/charts', label: 'Grafik', icon: CandlestickChart },
-  { href: '/news', label: 'Haber', icon: Newspaper },
-  { href: '/assistant', label: 'AI', icon: Bot },
-  { href: '/settings', label: 'Ayar', icon: Settings },
+  { href: '/', label: 'Ana Sayfa', icon: Home },
+  { href: '/charts', label: 'Grafikler', icon: BarChart3 },
+  { href: '/portfolio', label: 'Portföy', icon: BriefcaseBusiness },
+  { href: '/logs', label: 'Loglar', icon: ScrollText },
+  { href: '/news', label: 'Haberler', icon: Newspaper },
+  { href: '/settings', label: 'Ayarlar', icon: Settings },
 ];
 
 export function MobileNav({ active }: { active: string }) {
@@ -15,7 +16,8 @@ export function MobileNav({ active }: { active: string }) {
         const Icon = item.icon;
         return (
           <a key={item.href} className={active === item.href ? 'active' : ''} href={item.href}>
-            <Icon size={16} /> {item.label}
+            <Icon />
+            <span>{item.label}</span>
           </a>
         );
       })}
