@@ -45,11 +45,19 @@ class AutomationController:
     For production, this should later move to a dedicated worker/cron service.
     """
 
+    ALLOWED_INTERVALS = {10, 30, 60, 300}
+
     def __init__(self, services: Any, interval_seconds: int = 60) -> None:
         self.services = services
-        self.state = AutomationState(interval_seconds=max(10, int(interval_seconds)))
+        self.state = AutomationState(interval_seconds=self._normalize_interval(interval_seconds))
         self._task: asyncio.Task[None] | None = None
         self._lock = asyncio.Lock()
+
+    def _normalize_interval(self, seconds: int) -> int:
+        seconds = max(10, int(seconds))
+        if seconds in self.ALLOWED_INTERVALS:
+            return seconds
+        return min(self.ALLOWED_INTERVALS, key=lambda item: abs(item - seconds))
 
     async def start(self) -> dict[str, Any]:
         async with self._lock:
@@ -73,6 +81,18 @@ class AutomationController:
             if self._task and not self._task.done():
                 self._task.cancel()
             return self.state.as_dict()
+
+    async def set_interval(self, seconds: int) -> dict[str, Any]:
+        async with self._lock:
+            normalized = self._normalize_interval(seconds)
+            self.state.interval_seconds = normalized
+            self.state.note = f"Otomasyon aralığı {normalized} saniye olarak ayarlandı."
+            self.services.storage.event(
+                "INFO",
+                "Otomasyon aralığı güncellendi",
+                {"channel": "system", "interval_seconds": normalized},
+            )
+            return self.status()
 
     def status(self) -> dict[str, Any]:
         self.state.task_active = bool(self._task and not self._task.done())
