@@ -1,19 +1,32 @@
+'use client';
+
 type Props = {
   symbol: string;
   timeframe: string;
+  showVolume: boolean;
+  showEma: boolean;
 };
 
 const symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT'];
 const timeframes = ['1h', '1d', '1w'];
 
-export function ChartControls({ symbol, timeframe }: Props) {
+function buildUrl(next: Partial<Props>, current: Props) {
+  const params = new URLSearchParams();
+  params.set('symbol', next.symbol ?? current.symbol);
+  params.set('timeframe', next.timeframe ?? current.timeframe);
+  params.set('volume', String(next.showVolume ?? current.showVolume));
+  params.set('ema', String(next.showEma ?? current.showEma));
+  return `/charts?${params.toString()}`;
+}
+
+export function ChartControls(props: Props) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center' }}>
       <select
-        defaultValue={symbol}
+        value={props.symbol}
         aria-label="Coin seç"
         onChange={(event) => {
-          window.location.href = `/charts?symbol=${event.target.value}&timeframe=${timeframe}`;
+          window.location.href = buildUrl({ symbol: event.target.value }, props);
         }}
         style={{ border: '1px solid var(--border)', borderRadius: 14, padding: '12px 10px', background: '#fff' }}
       >
@@ -22,10 +35,10 @@ export function ChartControls({ symbol, timeframe }: Props) {
         ))}
       </select>
       <select
-        defaultValue={timeframe}
+        value={props.timeframe}
         aria-label="Zaman dilimi seç"
         onChange={(event) => {
-          window.location.href = `/charts?symbol=${symbol}&timeframe=${event.target.value}`;
+          window.location.href = buildUrl({ timeframe: event.target.value }, props);
         }}
         style={{ border: '1px solid var(--border)', borderRadius: 14, padding: '12px 10px', background: '#fff' }}
       >
@@ -35,13 +48,25 @@ export function ChartControls({ symbol, timeframe }: Props) {
       </select>
       <details style={{ position: 'relative' }}>
         <summary style={{ listStyle: 'none', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', background: 'var(--surface-soft)', cursor: 'pointer', fontWeight: 900 }}>⋮</summary>
-        <div style={{ position: 'absolute', right: 0, top: 48, zIndex: 10, minWidth: 210, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-soft)', padding: 10 }}>
+        <div style={{ position: 'absolute', right: 0, top: 48, zIndex: 10, minWidth: 220, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-soft)', padding: 10 }}>
           <b>Grafik Ayarları</b>
-          <p style={{ margin: '8px 0', color: 'var(--muted)', fontSize: 13 }}>Sonraki adımda buraya EMA, RSI, ATR, hacim ve renk ayarları bağlanacak.</p>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" defaultChecked /> Hacim</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" /> EMA</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" /> RSI</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" /> ATR</label>
+          <p style={{ margin: '8px 0', color: 'var(--muted)', fontSize: 13 }}>Ayarlar URL ile taşınır; sonraki adımda kullanıcı profilinde saklanacak.</p>
+          <label style={{ display: 'block', marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={props.showVolume}
+              onChange={(event) => { window.location.href = buildUrl({ showVolume: event.target.checked }, props); }}
+            /> Hacim
+          </label>
+          <label style={{ display: 'block', marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={props.showEma}
+              onChange={(event) => { window.location.href = buildUrl({ showEma: event.target.checked }, props); }}
+            /> EMA 50
+          </label>
+          <label style={{ display: 'block', marginTop: 8, color: 'var(--muted)' }}><input type="checkbox" disabled /> RSI</label>
+          <label style={{ display: 'block', marginTop: 8, color: 'var(--muted)' }}><input type="checkbox" disabled /> ATR</label>
         </div>
       </details>
     </div>
