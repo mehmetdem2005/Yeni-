@@ -12,8 +12,41 @@ export type LinePoint = {
   value: number;
 };
 
+export type BollingerBands = {
+  middle: LinePoint[];
+  upper: LinePoint[];
+  lower: LinePoint[];
+};
+
+export type MacdPoint = {
+  time: number;
+  macd: number;
+  signal: number;
+  histogram: number;
+};
+
 export function toUnixTime(timestamp: string) {
   return Math.floor(new Date(timestamp).getTime() / 1000);
+}
+
+export function sma(values: number[], period: number): Array<number | null> {
+  const result: Array<number | null> = values.map(() => null);
+  if (period <= 0) return result;
+  let sum = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    sum += Number(values[index]);
+    if (index >= period) sum -= Number(values[index - period]);
+    if (index >= period - 1) result[index] = sum / period;
+  }
+  return result;
+}
+
+export function stddevWindow(values: number[], endIndex: number, period: number): number | null {
+  if (endIndex < period - 1) return null;
+  const slice = values.slice(endIndex - period + 1, endIndex + 1);
+  const mean = slice.reduce((sum, item) => sum + Number(item), 0) / period;
+  const variance = slice.reduce((sum, item) => sum + Math.pow(Number(item) - mean, 2), 0) / period;
+  return Math.sqrt(variance);
 }
 
 export function ema(values: number[], period: number): Array<number | null> {
@@ -51,6 +84,26 @@ export function emaLine(candles: CandlePoint[], period: number): LinePoint[] {
     points.push({ time: toUnixTime(candles[index].timestamp), value });
   });
   return points;
+}
+
+export function bollingerBands(candles: CandlePoint[], period = 20, multiplier = 2): BollingerBands {
+  const closes = candles.map((item) => Number(item.close));
+  const middleValues = sma(closes, period);
+  const middle: LinePoint[] = [];
+  const upper: LinePoint[] = [];
+  const lower: LinePoint[] = [];
+
+  middleValues.forEach((middleValue, index) => {
+    if (middleValue === null) return;
+    const stdev = stddevWindow(closes, index, period);
+    if (stdev === null) return;
+    const time = toUnixTime(candles[index].timestamp);
+    middle.push({ time, value: middleValue });
+    upper.push({ time, value: middleValue + stdev * multiplier });
+    lower.push({ time, value: middleValue - stdev * multiplier });
+  });
+
+  return { middle, upper, lower };
 }
 
 export function rsi(values: number[], period: number): Array<number | null> {
@@ -123,6 +176,36 @@ export function atrLine(candles: CandlePoint[], period: number): LinePoint[] {
     if (value === null) return;
     points.push({ time: toUnixTime(candles[index].timestamp), value });
   });
+  return points;
+}
+
+export function macdPoints(candles: CandlePoint[], fast = 12, slow = 26, signalPeriod = 9): MacdPoint[] {
+  const closes = candles.map((item) => Number(item.close));
+  const fastEma = ema(closes, fast);
+  const slowEma = ema(closes, slow);
+  const macdValues: Array<number | null> = closes.map((_, index) => {
+    if (fastEma[index] === null || slowEma[index] === null) return null;
+    return Number(fastEma[index]) - Number(slowEma[index]);
+  });
+
+  const compactMacd = macdValues.filter((value): value is number => value !== null);
+  const compactSignal = ema(compactMacd, signalPeriod);
+  const firstMacdIndex = macdValues.findIndex((value) => value !== null);
+  const points: MacdPoint[] = [];
+
+  compactSignal.forEach((signalValue, compactIndex) => {
+    if (signalValue === null) return;
+    const candleIndex = firstMacdIndex + compactIndex;
+    const macdValue = macdValues[candleIndex];
+    if (macdValue === null || candleIndex < 0 || !candles[candleIndex]) return;
+    points.push({
+      time: toUnixTime(candles[candleIndex].timestamp),
+      macd: macdValue,
+      signal: signalValue,
+      histogram: macdValue - signalValue,
+    });
+  });
+
   return points;
 }
 
