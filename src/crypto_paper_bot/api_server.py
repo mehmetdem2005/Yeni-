@@ -45,9 +45,44 @@ def json_safe(value: Any) -> Any:
     return value
 
 
+def _safe_storage_list(method_name: str, symbol: str, limit: int) -> list[dict[str, Any]]:
+    method = getattr(services.storage, method_name, None)
+    if method is None:
+        return []
+    try:
+        return list(method(symbol, limit))
+    except Exception as exc:
+        services.storage.event(
+            "ERROR",
+            "Grafik olay verisi okunamadı",
+            {"channel": "error", "method": method_name, "symbol": symbol, "error": str(exc)},
+        )
+        return []
+
+
+def _news_marker_color(news: dict[str, Any]) -> str:
+    sentiment = str(news.get("sentiment") or "").lower()
+    score = float(news.get("sentiment_score") or 0)
+    if "neg" in sentiment or score < -0.15:
+        return "#dc2626"
+    if "pos" in sentiment or score > 0.15:
+        return "#16a34a"
+    return "#2563eb"
+
+
+def _whale_marker_color(event: dict[str, Any]) -> str:
+    side = str(event.get("side") or "").lower()
+    if side == "sell":
+        return "#dc2626"
+    if side == "buy":
+        return "#16a34a"
+    return "#0f766e"
+
+
 def chart_overlays(symbol: str) -> dict[str, Any]:
     markers: list[dict[str, Any]] = []
     price_lines: list[dict[str, Any]] = []
+
     for position in services.storage.all_positions(250):
         if position.get("symbol") != symbol:
             continue
@@ -57,6 +92,7 @@ def chart_overlays(symbol: str) -> dict[str, Any]:
         if opened_at:
             markers.append(
                 {
+                    "kind": "trade",
                     "time": opened_at,
                     "position": "belowBar",
                     "shape": "arrowUp",
@@ -69,6 +105,7 @@ def chart_overlays(symbol: str) -> dict[str, Any]:
             pnl = float(position.get("pnl") or 0)
             markers.append(
                 {
+                    "kind": "trade",
                     "time": closed_at,
                     "position": "aboveBar" if pnl >= 0 else "belowBar",
                     "shape": "arrowDown" if pnl >= 0 else "circle",
@@ -81,7 +118,51 @@ def chart_overlays(symbol: str) -> dict[str, Any]:
             price_lines.append({"price": position.get("stop_loss"), "title": "SL", "color": "#dc2626", "lineStyle": "dashed"})
             price_lines.append({"price": position.get("take_profit"), "title": "TP", "color": "#16a34a", "lineStyle": "dashed"})
             price_lines.append({"price": position.get("entry_price"), "title": "Giriş", "color": "#2563eb", "lineStyle": "solid"})
-    return {"markers": markers, "price_lines": price_lines}
+
+    for news in _safe_storage_list("latest_news_items", symbol, 80):
+        marker_time = news.get("published_at") or news.get("created_at")
+        if not marker_time:
+            continue
+        impact = float(news.get("impact_score") or 0)
+        markers.append(
+            {
+                "kind": "news",
+                "time": marker_time,
+                "position": "aboveBar" if impact >= 0 else "belowBar",
+                "shape": "square",
+                "text": "HABER",
+                "color": _news_marker_color(news),
+                "title": news.get("title"),
+                "impact_score": news.get("impact_score"),
+                "sentiment": news.get("sentiment"),
+            }
+        )
+
+    for event in _safe_storage_list("latest_whale_events", symbol, 80):
+        marker_time = event.get("created_at")
+        if not marker_time:
+            continue
+        markers.append(
+            {
+                "kind": "whale",
+                "time": marker_time,
+                "position": "aboveBar" if str(event.get("side") or "").lower() == "sell" else "belowBar",
+                "shape": "circle",
+                "text": "BALİNA",
+                "color": _whale_marker_color(event),
+                "price": event.get("price"),
+                "event_type": event.get("event_type"),
+                "score": event.get("score"),
+                "notional": event.get("notional"),
+            }
+        )
+
+    counts = {
+        "trade": len([m for m in markers if m.get("kind") == "trade"]),
+        "news": len([m for m in markers if m.get("kind") == "news"]),
+        "whale": len([m for m in markers if m.get("kind") == "whale"]),
+    }
+    return {"markers": markers, "price_lines": price_lines, "counts": counts}
 
 
 class AssistantRequest(BaseModel):
