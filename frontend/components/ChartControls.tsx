@@ -1,5 +1,7 @@
 'use client';
 
+import { BarChart3, Bitcoin, CandlestickChart, Settings2 } from 'lucide-react';
+
 type Props = {
   symbol: string;
   timeframe: string;
@@ -39,52 +41,61 @@ function buildUrl(next: Partial<Props>, current: Props) {
   return `/charts?${params.toString()}`;
 }
 
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 9, color: 'var(--text)', fontSize: 12, fontWeight: 800 }}>
+      <span>{label}</span>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} style={{ width: 17, height: 17, accentColor: 'var(--primary)' }} />
+    </label>
+  );
+}
+
 export function ChartControls(props: Props) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center' }}>
-      <select
-        value={props.symbol}
-        aria-label="Coin seç"
-        onChange={(event) => {
-          window.location.href = buildUrl({ symbol: event.target.value }, props);
-        }}
-        style={{ border: '1px solid var(--border)', borderRadius: 14, padding: '12px 10px', background: '#fff' }}
-      >
-        {symbols.map((item) => (
-          <option key={item} value={item}>{item.replace('USDT', '/USDT')}</option>
-        ))}
-      </select>
+    <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 0.74fr 36px 36px 36px', gap: 6, alignItems: 'center' }}>
+      <label style={{ position: 'relative', minWidth: 0 }}>
+        <Bitcoin size={16} color="var(--warning)" style={{ position: 'absolute', left: 9, top: 11, pointerEvents: 'none' }} />
+        <select
+          value={props.symbol}
+          aria-label="Coin seç"
+          onChange={(event) => { window.location.href = buildUrl({ symbol: event.target.value }, props); }}
+          style={{ width: '100%', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 8px 10px 30px', background: '#fff', fontWeight: 900, fontSize: 12, boxShadow: 'var(--shadow-card)' }}
+        >
+          {symbols.map((item) => <option key={item} value={item}>{item.replace('USDT', '/USDT')}</option>)}
+        </select>
+      </label>
+
       <select
         value={props.timeframe}
         aria-label="Zaman dilimi seç"
-        onChange={(event) => {
-          window.location.href = buildUrl({ timeframe: event.target.value }, props);
-        }}
-        style={{ border: '1px solid var(--border)', borderRadius: 14, padding: '12px 10px', background: '#fff' }}
+        onChange={(event) => { window.location.href = buildUrl({ timeframe: event.target.value }, props); }}
+        style={{ width: '100%', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 8px', background: '#fff', fontWeight: 900, fontSize: 12, boxShadow: 'var(--shadow-card)' }}
       >
-        {timeframes.map((item) => (
-          <option key={item} value={item}>{item}</option>
-        ))}
+        {timeframes.map((item) => <option key={item} value={item}>{item}</option>)}
       </select>
+
+      <button title="İndikatörler" style={{ height: 36, border: '1px solid var(--border)', borderRadius: 12, background: '#fff', display: 'grid', placeItems: 'center', color: 'var(--primary)', boxShadow: 'var(--shadow-card)' }} type="button"><BarChart3 size={17} /></button>
+      <button title="Mum tipi" style={{ height: 36, border: '1px solid var(--border)', borderRadius: 12, background: '#fff', display: 'grid', placeItems: 'center', color: 'var(--text)', boxShadow: 'var(--shadow-card)' }} type="button"><CandlestickChart size={17} /></button>
+
       <details style={{ position: 'relative' }}>
-        <summary style={{ listStyle: 'none', border: '1px solid var(--border)', borderRadius: 14, padding: '12px 14px', background: 'var(--surface-soft)', cursor: 'pointer', fontWeight: 900 }}>⋮</summary>
-        <div style={{ position: 'absolute', right: 0, top: 48, zIndex: 10, minWidth: 265, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-soft)', padding: 10 }}>
-          <b>Grafik Ayarları</b>
-          <p style={{ margin: '8px 0', color: 'var(--muted)', fontSize: 13 }}>Ayarlar URL ile taşınır; sonraki adımda kullanıcı profilinde saklanacak.</p>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showVolume} onChange={(event) => { window.location.href = buildUrl({ showVolume: event.target.checked }, props); }} /> Hacim</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showEma} onChange={(event) => { window.location.href = buildUrl({ showEma: event.target.checked }, props); }} /> EMA 50</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showBollinger} onChange={(event) => { window.location.href = buildUrl({ showBollinger: event.target.checked }, props); }} /> Bollinger Bands</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showVwap} onChange={(event) => { window.location.href = buildUrl({ showVwap: event.target.checked }, props); }} /> VWAP</label>
+        <summary style={{ listStyle: 'none', height: 36, border: '1px solid var(--border)', borderRadius: 12, background: '#fff', cursor: 'pointer', fontWeight: 900, display: 'grid', placeItems: 'center', boxShadow: 'var(--shadow-card)' }}><Settings2 size={17} /></summary>
+        <div style={{ position: 'absolute', right: 0, top: 43, zIndex: 10, minWidth: 230, background: '#fff', border: '1px solid var(--border)', borderRadius: 16, boxShadow: '0 18px 48px rgba(35, 56, 92, 0.16)', padding: 12 }}>
+          <b style={{ fontSize: 13 }}>Grafik Ayarları</b>
+          <p style={{ margin: '6px 0 10px', color: 'var(--muted)', fontSize: 11 }}>İndikatörleri ve işaretleri aç/kapat.</p>
+          <Toggle label="EMA 50" checked={props.showEma} onChange={(checked) => { window.location.href = buildUrl({ showEma: checked }, props); }} />
+          <Toggle label="VWAP" checked={props.showVwap} onChange={(checked) => { window.location.href = buildUrl({ showVwap: checked }, props); }} />
+          <Toggle label="Bollinger Bands" checked={props.showBollinger} onChange={(checked) => { window.location.href = buildUrl({ showBollinger: checked }, props); }} />
+          <Toggle label="Hacim" checked={props.showVolume} onChange={(checked) => { window.location.href = buildUrl({ showVolume: checked }, props); }} />
           <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '10px 0' }} />
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showRsi} onChange={(event) => { window.location.href = buildUrl({ showRsi: event.target.checked }, props); }} /> RSI 14</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showAtr} onChange={(event) => { window.location.href = buildUrl({ showAtr: event.target.checked }, props); }} /> ATR 14</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showMacd} onChange={(event) => { window.location.href = buildUrl({ showMacd: event.target.checked }, props); }} /> MACD 12/26/9</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showAdx} onChange={(event) => { window.location.href = buildUrl({ showAdx: event.target.checked }, props); }} /> ADX 14</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showMfi} onChange={(event) => { window.location.href = buildUrl({ showMfi: event.target.checked }, props); }} /> MFI 14</label>
+          <Toggle label="RSI 14" checked={props.showRsi} onChange={(checked) => { window.location.href = buildUrl({ showRsi: checked }, props); }} />
+          <Toggle label="MACD" checked={props.showMacd} onChange={(checked) => { window.location.href = buildUrl({ showMacd: checked }, props); }} />
+          <Toggle label="ATR 14" checked={props.showAtr} onChange={(checked) => { window.location.href = buildUrl({ showAtr: checked }, props); }} />
+          <Toggle label="ADX 14" checked={props.showAdx} onChange={(checked) => { window.location.href = buildUrl({ showAdx: checked }, props); }} />
+          <Toggle label="MFI 14" checked={props.showMfi} onChange={(checked) => { window.location.href = buildUrl({ showMfi: checked }, props); }} />
           <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '10px 0' }} />
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showTradeMarkers} onChange={(event) => { window.location.href = buildUrl({ showTradeMarkers: event.target.checked }, props); }} /> İşlem işaretleri</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showNewsMarkers} onChange={(event) => { window.location.href = buildUrl({ showNewsMarkers: event.target.checked }, props); }} /> Haber işaretleri</label>
-          <label style={{ display: 'block', marginTop: 8 }}><input type="checkbox" checked={props.showWhaleMarkers} onChange={(event) => { window.location.href = buildUrl({ showWhaleMarkers: event.target.checked }, props); }} /> Balina işaretleri</label>
+          <Toggle label="İşlem işaretleri" checked={props.showTradeMarkers} onChange={(checked) => { window.location.href = buildUrl({ showTradeMarkers: checked }, props); }} />
+          <Toggle label="Haber işaretleri" checked={props.showNewsMarkers} onChange={(checked) => { window.location.href = buildUrl({ showNewsMarkers: checked }, props); }} />
+          <Toggle label="Balina işaretleri" checked={props.showWhaleMarkers} onChange={(checked) => { window.location.href = buildUrl({ showWhaleMarkers: checked }, props); }} />
         </div>
       </details>
     </div>
