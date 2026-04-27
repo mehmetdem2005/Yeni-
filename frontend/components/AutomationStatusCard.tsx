@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, RefreshCcw, ShieldAlert, TimerReset, X } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCcw, ServerCog, ShieldAlert, TimerReset, X } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 
 type AutomationStatus = {
@@ -13,7 +13,17 @@ type AutomationStatus = {
   note?: string;
 };
 
-type StatusResponse = { automation?: AutomationStatus };
+type WorkerStatus = {
+  status?: string;
+  running?: boolean;
+  cycle_count?: number;
+  interval_seconds?: number;
+  last_error?: string | null;
+  heartbeat_at?: string;
+  updated_at?: string;
+};
+
+type StatusResponse = { automation?: AutomationStatus; worker?: WorkerStatus | null };
 
 type ConfirmAction = {
   label: string;
@@ -40,8 +50,16 @@ function intervalLabel(value: number) {
   return `${Math.round(value / 60)}dk`;
 }
 
+function heartbeatFresh(value?: string | null, intervalSeconds = 300) {
+  if (!value) return false;
+  const ageMs = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(ageMs)) return false;
+  return ageMs < Math.max(intervalSeconds * 3, 120) * 1000;
+}
+
 export function AutomationStatusCard() {
   const [status, setStatus] = useState<AutomationStatus | null>(null);
+  const [worker, setWorker] = useState<WorkerStatus | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState('Durum yükleniyor...');
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
@@ -50,6 +68,7 @@ export function AutomationStatusCard() {
     try {
       const data = await apiGet<StatusResponse>('/api/status');
       setStatus(data.automation ?? null);
+      setWorker(data.worker ?? null);
       setMessage(data.automation?.note || 'Durum alındı');
     } catch {
       setMessage('Durum alınamadı');
@@ -89,6 +108,8 @@ export function AutomationStatusCard() {
 
   const running = Boolean(status?.running);
   const activeInterval = status?.interval_seconds ?? 10;
+  const workerBeat = worker?.heartbeat_at ?? worker?.updated_at;
+  const workerAlive = heartbeatFresh(workerBeat, worker?.interval_seconds ?? 300);
   return (
     <section className="card" style={{ display: 'grid', gap: 10, position: 'relative' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -104,28 +125,38 @@ export function AutomationStatusCard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
         <div style={{ borderRadius: 14, background: running ? 'var(--good-soft)' : 'var(--surface-soft)', padding: 9, textAlign: 'center' }}>
           <b style={{ color: running ? 'var(--good)' : 'var(--muted)' }}>{running ? 'Açık' : 'Kapalı'}</b>
-          <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Durum</div>
+          <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Panel</div>
         </div>
         <div style={{ borderRadius: 14, background: 'var(--surface-soft)', padding: 9, textAlign: 'center' }}>
           <b>{status?.cycle_count ?? 0}</b>
-          <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Tur</div>
+          <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Panel Tur</div>
         </div>
         <div style={{ borderRadius: 14, background: 'var(--surface-soft)', padding: 9, textAlign: 'center' }}>
           <b>{intervalLabel(activeInterval)}</b>
-          <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Aralık</div>
+          <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800 }}>Panel Aralık</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '34px 1fr', gap: 10, alignItems: 'center', padding: 10, borderRadius: 15, background: workerAlive ? 'var(--good-soft)' : 'var(--surface-soft)' }}>
+        <ServerCog size={18} color={workerAlive ? 'var(--good)' : 'var(--primary)'} />
+        <div>
+          <b style={{ fontSize: 12 }}>Worker: {workerAlive ? 'Canlı' : 'Bekliyor'} · {worker?.cycle_count ?? 0} tur</b>
+          <p style={{ margin: '3px 0 0', color: 'var(--muted)', fontSize: 11, lineHeight: 1.35 }}>
+            Son heartbeat: {formatTime(workerBeat)}{worker?.last_error ? ` · Hata: ${worker.last_error}` : ''}
+          </p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '34px 1fr', gap: 10, alignItems: 'center', padding: 10, borderRadius: 15, background: status?.last_error ? 'var(--bad-soft)' : 'var(--surface-soft)' }}>
         <TimerReset size={18} color={status?.last_error ? 'var(--bad)' : 'var(--primary)'} />
         <div>
-          <b style={{ fontSize: 12 }}>Son cycle: {formatTime(status?.last_cycle_at)}</b>
+          <b style={{ fontSize: 12 }}>Son panel cycle: {formatTime(status?.last_cycle_at)}</b>
           <p style={{ margin: '3px 0 0', color: 'var(--muted)', fontSize: 11, lineHeight: 1.35 }}>{status?.last_error || message}</p>
         </div>
       </div>
 
       <div style={{ display: 'grid', gap: 7 }}>
-        <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 900 }}>ÇALIŞMA ARALIĞI</div>
+        <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 900 }}>PANEL ÇALIŞMA ARALIĞI</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 7 }}>
           {intervals.map((seconds) => {
             const active = activeInterval === seconds;
@@ -156,30 +187,10 @@ export function AutomationStatusCard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <button
-          type="button"
-          onClick={() => setConfirmAction({
-            label: 'Acil Kapat',
-            path: '/api/emergency/close-all',
-            title: 'Açık pozisyonlar acil kapatılsın mı?',
-            body: 'Bu işlem otomasyonu durdurur ve tüm açık paper-trade pozisyonlarını güncel bid fiyatıyla kapatmayı dener. Geri alınamaz.',
-            dangerText: 'Evet, Acil Kapat',
-          })}
-          style={{ minHeight: 46, border: 0, borderRadius: 14, background: 'var(--bad)', color: '#fff', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}
-        >
+        <button type="button" onClick={() => setConfirmAction({ label: 'Acil Kapat', path: '/api/emergency/close-all', title: 'Açık pozisyonlar acil kapatılsın mı?', body: 'Bu işlem otomasyonu durdurur ve tüm açık paper-trade pozisyonlarını güncel bid fiyatıyla kapatmayı dener. Geri alınamaz.', dangerText: 'Evet, Acil Kapat' })} style={{ minHeight: 46, border: 0, borderRadius: 14, background: 'var(--bad)', color: '#fff', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
           {busy === 'Acil Kapat' ? <Loader2 className="spin" size={17} /> : <ShieldAlert size={17} />} Acil Kapat
         </button>
-        <button
-          type="button"
-          onClick={() => setConfirmAction({
-            label: 'Hesabı Sıfırla',
-            path: '/api/reset-paper-account',
-            title: 'Paper hesabı sıfırlansın mı?',
-            body: 'Bu işlem sanal hesap, paper pozisyonlar, equity geçmişi ve sinyal kayıtlarını sıfırlayabilir. Test geçmişini kaybetmek istemiyorsan basma.',
-            dangerText: 'Evet, Sıfırla',
-          })}
-          style={{ minHeight: 46, border: '1px solid var(--border)', borderRadius: 14, background: '#fff', color: 'var(--bad)', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}
-        >
+        <button type="button" onClick={() => setConfirmAction({ label: 'Hesabı Sıfırla', path: '/api/reset-paper-account', title: 'Paper hesabı sıfırlansın mı?', body: 'Bu işlem sanal hesap, paper pozisyonlar, equity geçmişi ve sinyal kayıtlarını sıfırlayabilir. Test geçmişini kaybetmek istemiyorsan basma.', dangerText: 'Evet, Sıfırla' })} style={{ minHeight: 46, border: '1px solid var(--border)', borderRadius: 14, background: '#fff', color: 'var(--bad)', fontWeight: 950, display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: 7 }}>
           {busy === 'Hesabı Sıfırla' ? <Loader2 className="spin" size={17} /> : <AlertTriangle size={17} />} Sıfırla
         </button>
       </div>
