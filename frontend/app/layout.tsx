@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import type { ReactNode } from 'react';
 import { AssistantFloatingButton } from '@/components/AssistantFloatingButton';
 import './globals.css';
 
@@ -14,7 +15,7 @@ export const viewport: Viewport = {
   themeColor: '#f6f8fc',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="tr">
       <body>
