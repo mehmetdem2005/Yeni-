@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { AssistantFloatingButton } from '@/components/AssistantFloatingButton';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -16,7 +17,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="tr">
-      <body>{children}</body>
+      <body>
+        {children}
+        <AssistantFloatingButton />
+      </body>
     </html>
   );
 }
