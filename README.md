@@ -139,6 +139,45 @@ runtime heartbeat kaydeder
 
 ---
 
+## Tek Komut Sağlık Kontrolü
+
+Projeyi hızlı kontrol etmek için:
+
+```bash
+python scripts/check_project.py
+```
+
+Paket script olarak:
+
+```bash
+crypto-paper-bot-check
+```
+
+Bu kontrol şunları dener:
+
+```text
+zorunlu dosyalar var mı
+Python dosyaları compile oluyor mu
+backend smoke runtime çalışıyor mu
+frontend/node_modules varsa npm run build geçiyor mu
+```
+
+Frontend node_modules yoksa build kontrolünü atlar ve önce şunu çalıştırmanı söyler:
+
+```bash
+cd frontend
+npm install
+```
+
+Frontend TypeScript kontrolü:
+
+```bash
+cd frontend
+npm run typecheck
+```
+
+---
+
 ## Supabase Kurulum
 
 1. Supabase projesi oluştur.
