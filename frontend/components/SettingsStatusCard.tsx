@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { CheckCircle2, Database, KeyRound, Server, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
 
 type Runtime = {
@@ -29,7 +30,7 @@ function StatusPill({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-function SettingRow({ icon, title, desc, ok, okText, failText }: { icon: React.ReactNode; title: string; desc: string; ok: boolean; okText: string; failText: string }) {
+function SettingRow({ icon, title, desc, ok, okText, failText }: { icon: ReactNode; title: string; desc: string; ok: boolean; okText: string; failText: string }) {
   return (
     <article style={{ display: 'grid', gridTemplateColumns: '38px 1fr auto', gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
       <span className="icon-tile" style={{ color: ok ? 'var(--good)' : 'var(--bad)', background: ok ? 'var(--good-soft)' : 'var(--bad-soft)' }}>{icon}</span>
