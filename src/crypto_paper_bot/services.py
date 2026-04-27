@@ -16,6 +16,7 @@ from crypto_paper_bot.service_utils import RateLimitedBinance, store_logs
 from crypto_paper_bot.training_service import TrainingService
 
 SYMBOLS = DEFAULT_SYMBOLS
+WORKER_STATE_KEY = "worker_heartbeat"
 
 
 class AppServices:
@@ -61,6 +62,9 @@ class AppServices:
         )
         store_logs(self.storage, snapshot.logs)
         return system_confidence_as_plain_dict(snapshot)
+
+    def worker_status(self) -> dict[str, Any] | None:
+        return self.storage.load_runtime_state(WORKER_STATE_KEY)
 
     def analyze_symbol(self, symbol: str, system_confidence: dict[str, Any] | None = None) -> dict[str, Any]:
         return self.analysis.analyze_symbol(symbol, system_confidence or self.current_system_confidence())
@@ -119,6 +123,7 @@ class AppServices:
             "system_confidence": self.current_system_confidence(),
             "rate_limits": self.rate_limiter.snapshot(),
             "database": storage_runtime_info(),
+            "worker": self.worker_status(),
         }
 
     def reset_account(self) -> None:
