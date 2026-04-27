@@ -183,6 +183,12 @@ class BotStorage:
             rows = conn.execute("SELECT * FROM signal_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(row) for row in rows]
 
+    def latest_news_items(self, symbol: str, limit: int = 80) -> list[dict[str, Any]]:
+        return []
+
+    def latest_whale_events(self, symbol: str, limit: int = 80) -> list[dict[str, Any]]:
+        return []
+
     def open_positions(self) -> list[dict[str, Any]]:
         with self.connect() as conn:
             rows = conn.execute("SELECT * FROM paper_positions WHERE status = 'OPEN' ORDER BY id DESC").fetchall()
