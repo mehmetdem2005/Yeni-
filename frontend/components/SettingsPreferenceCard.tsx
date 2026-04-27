@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import { BarChart3, Bell, Bot, CandlestickChart, Moon, SlidersHorizontal } from 'lucide-react';
 
-function ToggleRow({ icon, title, desc, checked = true }: { icon: React.ReactNode; title: string; desc: string; checked?: boolean }) {
+function ToggleRow({ icon, title, desc, checked = true }: { icon: ReactNode; title: string; desc: string; checked?: boolean }) {
   return (
     <article style={{ display: 'grid', gridTemplateColumns: '38px 1fr auto', gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
       <span className="icon-tile">{icon}</span>
